@@ -1,0 +1,5 @@
+2007-11-15  Tasuku SUENAGA  <gunyarakun@sourceforge.jp>
+
+	* first version
+	* hdb interface (thanks much for Shin ADACHI)
+	* bdb interface
