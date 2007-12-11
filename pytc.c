@@ -1165,20 +1165,25 @@ BOOL_NOARGS(PyTCBDB_setmutex,PyTCBDB,tcbdbsetmutex,bdb,raise_tcbdb_error,bdb)
 static int
 TCBDB_cmpfunc(const char *aptr, int asiz,
               const char *bptr, int bsiz, PyTCBDB *self) {
-  int ret;
+  int ret = 0;
   PyObject *args, *result;
+  PyGILState_STATE gstate;
+
   if ((args = Py_BuildValue("(s#s#O)", aptr, asiz, bptr, bsiz, self->cmpop))) {
     /* TODO: set error */
     return 0;
   }
+  gstate = PyGILState_Ensure();
   result = PyEval_CallObject(self->cmp, args);
   Py_DECREF(args);
   if (!result) {
     /* TODO: set error */
-    return 0;
+    goto exit;
   }
   ret = PyLong_AsLong(result);
   Py_DECREF(result);
+exit:
+  PyGILState_Release(gstate);
   return ret;
 }
 
