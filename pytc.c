@@ -620,12 +620,20 @@ PyTCHDB_length(PyTCHDB *self) {
 static PyObject *
 PyTCHDB_subscript(PyTCHDB *self, PyObject *_key) {
   PyObject *ret;
-  char *key = PyString_AS_STRING(_key), *value;
-  int key_len = PyString_GET_SIZE(_key), value_len;
+  char *key, *value;
+  int key_len, value_len;
 
+  if (!PyString_Check(_key)) {
+    PyErr_SetString(PyExc_TypeError, "only string is allowed in []");
+    return NULL;
+  }
+
+  key = PyString_AS_STRING(_key);
+  key_len = PyString_GET_SIZE(_key);
   if (!key || !key_len) {
     return NULL;
   }
+
   Py_BEGIN_ALLOW_THREADS
   value = tchdbget(self->hdb, key, key_len, &value_len);
   Py_END_ALLOW_THREADS
@@ -1579,9 +1587,15 @@ PyTCBDB_length(PyTCBDB *self) {
 static PyObject *
 PyTCBDB_subscript(PyTCBDB *self, PyObject *_key) {
   PyObject *ret;
-  char *key = PyString_AS_STRING(_key), *value;
-  int key_len = PyString_GET_SIZE(_key), value_len;
+  char *key, *value;
+  int key_len, value_len;
 
+  if (!PyString_Check(_key)) {
+    PyErr_SetString(PyExc_TypeError, "only string is allowed in []");
+    return NULL;
+  }
+  key = PyString_AS_STRING(_key);
+  key_len = PyString_GET_SIZE(_key);
   if (!key || !key_len) {
     return NULL;
   }

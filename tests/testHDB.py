@@ -89,6 +89,9 @@ class TestHDB(unittest.TestCase):
     self.assertEqual(sorted(db.items()),[
       ('hamu', 'ju'), ('kiki', 'nya-nya-nya-'), ('moru', 'pui'), ('moruta', 'puipui')])
 
+    # this bug is reported by id:a2c
+    self.assertRaises(TypeError, eval, 'db[:]', globals(), locals())
+
     db['gunya'] = 'tekito'
     self.assertEqual(db['gunya'], 'tekito')
     del db['gunya']

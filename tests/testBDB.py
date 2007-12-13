@@ -99,6 +99,9 @@ class TestBDB(unittest.TestCase):
       ('hamu', 'ju'), ('kiki', 'nya-nya-nya-'), ('kiki', 'unya-n'),
       ('moru', 'pui'), ('moruta', 'puipui')])
 
+    # this bug is reported by id:a2c
+    self.assertRaises(TypeError, eval, 'db[:]', globals(), locals())
+
     db['gunya'] = 'tekito'
     self.assertEqual(db['gunya'], 'tekito')
     del db['gunya']
