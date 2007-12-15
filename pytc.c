@@ -297,6 +297,140 @@ typedef struct {
     return ret; \
   }
 
+/* for dict like interface */
+#define TCXDB_length(func,type,call,member) \
+  static long \
+  func(type *self) { \
+    return call(self->member); \
+  } \
+
+#define TCXDB_subscript(func,type,call,member,err) \
+  static PyObject * \
+  func(type *self, PyObject *_key) { \
+    PyObject *ret; \
+    char *key, *value; \
+    int key_len, value_len; \
+  \
+    if (!PyString_Check(_key)) { \
+      PyErr_SetString(PyExc_TypeError, "only string is allowed in []"); \
+      return NULL; \
+    } \
+    key = PyString_AS_STRING(_key); \
+    key_len = PyString_GET_SIZE(_key); \
+    if (!key || !key_len) { \
+      return NULL; \
+    } \
+    Py_BEGIN_ALLOW_THREADS \
+    value = call(self->member, key, key_len, &value_len); \
+    Py_END_ALLOW_THREADS \
+  \
+    if (!value) { \
+      err(self->member); \
+      return NULL; \
+    } \
+    ret = PyString_FromStringAndSize(value, value_len); \
+    free(value); \
+    return ret; \
+  } \
+
+#define TCXDB_DelItem(func,type,call,member,err) \
+  int \
+  func(type *self, PyObject *_key) { \
+    bool result; \
+    char *key = PyString_AS_STRING(_key); \
+    int key_len = PyString_GET_SIZE(_key); \
+  \
+    if (!key || !key_len) { \
+      return -1; \
+    } \
+    Py_BEGIN_ALLOW_THREADS \
+    result = call(self->member, key, key_len); \
+    Py_END_ALLOW_THREADS \
+  \
+    if (!result) { \
+      err(self->member); \
+      return -1; \
+    } \
+    return 0; \
+  }
+
+#define TCXDB_SetItem(func,type,call,member,err) \
+  int \
+  func(type *self, PyObject *_key, PyObject *_value) { \
+    bool result; \
+    char *key = PyString_AS_STRING(_key), *value = PyString_AS_STRING(_value); \
+    int key_len = PyString_GET_SIZE(_key), value_len = PyString_GET_SIZE(_value); \
+  \
+    if (!key || !key_len || !value) { \
+      return -1; \
+    } \
+    Py_BEGIN_ALLOW_THREADS \
+    result = call(self->member, key, key_len, value, value_len); \
+    Py_END_ALLOW_THREADS \
+  \
+    if (!result) { \
+      err(self->member); \
+      return -1; \
+    } \
+    return 0; \
+  }
+
+#define TCXDB_ass_sub(func,type,setitem,delitem) \
+  static int \
+  func(type *self, PyObject *v, PyObject *w) \
+  { \
+    if (w) { \
+      return setitem(self, v, w); \
+    } else { \
+      return delitem(self, v); \
+    } \
+  }
+
+#define TCXDB_Contains(func,type,call,member) \
+  static int \
+  func(type *self, PyObject *_key) { \
+    char *key = PyString_AS_STRING(_key); \
+    int key_len = PyString_GET_SIZE(_key), value_len; \
+  \
+    if (!key || !key_len) { \
+      return -1; \
+    } \
+    Py_BEGIN_ALLOW_THREADS \
+    value_len = call(self->member, key, key_len); \
+    Py_END_ALLOW_THREADS \
+  \
+    return (value_len != -1); \
+  }
+
+#define TCXDB___contains__(func,type,call) \
+  static PyObject * \
+  func(type *self, PyObject *_key) { \
+    return PyBool_FromLong(call(self, _key) != 0); \
+  }
+
+#define TCXDB___getitem__(func,type,call,member,err) \
+  static PyObject * \
+  func(type *self, PyObject *_key) { \
+    PyObject *ret; \
+    char *key = PyString_AS_STRING(_key), *value; \
+    int key_len = PyString_GET_SIZE(_key), value_len; \
+  \
+    if (!key || !key_len) { \
+      return NULL; \
+    } \
+    Py_BEGIN_ALLOW_THREADS \
+    value = call(self->member, key, key_len, &value_len); \
+    Py_END_ALLOW_THREADS \
+  \
+    if (!value) { \
+      err(self->member); \
+      return NULL; \
+    } \
+    ret = PyString_FromStringAndSize(value, value_len); \
+    free(value); \
+    return ret; \
+  }
+
 /*** TCHDB ***/
 
 #define PyTCHDB_TUNE(a,b,c) \
@@ -450,48 +584,9 @@ BOOL_PATHARGS(PyTCHDB_copy, PyTCHDB, copy, tchdbcopy, hdb, raise_tchdb_error)
 
 /* TODO: features for experts */
 
-static int
-PyTCHDB_Contains(PyTCHDB *self, PyObject *_key) {
-  char *key = PyString_AS_STRING(_key);
-  int key_len = PyString_GET_SIZE(_key), value_len;
-
-  if (!key || !key_len) {
-    return -1;
-  }
-  Py_BEGIN_ALLOW_THREADS
-  value_len = tchdbvsiz(self->hdb, key, key_len);
-  Py_END_ALLOW_THREADS
-
-  return (value_len != -1);
-}
-
-static PyObject *
-PyTCHDB___contains__(PyTCHDB *self, PyObject *_key) {
-  return PyBool_FromLong(PyTCHDB_Contains(self, _key) != 0);
-}
-
-static PyObject *
-PyTCHDB___getitem__(PyTCHDB *self, PyObject *_key) {
-  PyObject *ret;
-  char *key = PyString_AS_STRING(_key), *value;
-  int key_len = PyString_GET_SIZE(_key), value_len;
-
-  if (!key || !key_len) {
-    return NULL;
-  }
-  Py_BEGIN_ALLOW_THREADS
-  value = tchdbget(self->hdb, key, key_len, &value_len);
-  Py_END_ALLOW_THREADS
-
-  if (!value) {
-    raise_tchdb_error(self->hdb);
-    return NULL;
-  }
-  ret = PyString_FromStringAndSize(value, value_len);
-  free(value);
-  return ret;
-}
-
+TCXDB_Contains(PyTCHDB_Contains,PyTCHDB,tchdbvsiz,hdb)
+TCXDB___contains__(PyTCHDB___contains__,PyTCHDB,PyTCHDB_Contains)
+TCXDB___getitem__(PyTCHDB___getitem__,PyTCHDB,tchdbget,hdb,raise_tchdb_error)
 TCXDB_rnum(TCHDB_rnum,TCHDB,tchdbrnum)
 
 static PyObject *
@@ -612,90 +707,11 @@ PyTCHDB_values(PyTCHDB *self) {
   return ret;
 }
 
-static long
-PyTCHDB_length(PyTCHDB *self) {
-  return TCHDB_rnum(self->hdb);
-}
-
-static PyObject *
-PyTCHDB_subscript(PyTCHDB *self, PyObject *_key) {
-  PyObject *ret;
-  char *key, *value;
-  int key_len, value_len;
-
-  if (!PyString_Check(_key)) {
-    PyErr_SetString(PyExc_TypeError, "only string is allowed in []");
-    return NULL;
-  }
-
-  key = PyString_AS_STRING(_key);
-  key_len = PyString_GET_SIZE(_key);
-  if (!key || !key_len) {
-    return NULL;
-  }
-
-  Py_BEGIN_ALLOW_THREADS
-  value = tchdbget(self->hdb, key, key_len, &value_len);
-  Py_END_ALLOW_THREADS
-
-  if (!value) {
-    raise_tchdb_error(self->hdb);
-    return NULL;
-  }
-  ret = PyString_FromStringAndSize(value, value_len);
-  free(value);
-  return ret;
-}
-
-int
-PyTCHDB_DelItem(PyTCHDB *self, PyObject *_key) {
-  bool result;
-  char *key = PyString_AS_STRING(_key);
-  int key_len = PyString_GET_SIZE(_key);
-
-  if (!key || !key_len) {
-    return -1;
-  }
-  Py_BEGIN_ALLOW_THREADS
-  result = tchdbout(self->hdb, key, key_len);
-  Py_END_ALLOW_THREADS
-
-  if (!result) {
-    raise_tchdb_error(self->hdb);
-    return -1;
-  }
-  return 0;
-}
-
-int
-PyTCHDB_SetItem(PyTCHDB *self, PyObject *_key, PyObject *_value) {
-  bool result;
-  char *key = PyString_AS_STRING(_key), *value = PyString_AS_STRING(_value);
-  int key_len = PyString_GET_SIZE(_key), value_len = PyString_GET_SIZE(_value);
-
-  if (!key || !key_len || !value) {
-    return -1;
-  }
-  Py_BEGIN_ALLOW_THREADS
-  result = tchdbput(self->hdb, key, key_len, value, value_len);
-  Py_END_ALLOW_THREADS
-
-  if (!result) {
-    raise_tchdb_error(self->hdb);
-    return -1;
-  }
-  return 0;
-}
-
-static int
-PyTCHDB_ass_sub(PyTCHDB *self, PyObject *v, PyObject *w)
-{
-  if (w) {
-    return PyTCHDB_SetItem(self, v, w);
-  } else {
-    return PyTCHDB_DelItem(self, v);
-  }
-}
+TCXDB_length(PyTCHDB_length,PyTCHDB,TCHDB_rnum,hdb)
+TCXDB_subscript(PyTCHDB_subscript,PyTCHDB,tchdbget,hdb,raise_tchdb_error)
+TCXDB_DelItem(PyTCHDB_DelItem,PyTCHDB,tchdbout,hdb,raise_tchdb_error)
+TCXDB_SetItem(PyTCHDB_SetItem,PyTCHDB,tchdbput,hdb,raise_tchdb_error)
+TCXDB_ass_sub(PyTCHDB_ass_sub,PyTCHDB,PyTCHDB_SetItem,PyTCHDB_DelItem)
 
 /* methods of classes */
 static PyMethodDef PyTCHDB_methods[] = {
@@ -1352,47 +1368,9 @@ PY_U_LONG_LONG_NOARGS(PyTCBDB_fsiz, PyTCBDB, tcbdbrnum, bdb, tcbdbecode, raise_t
 
 /* TODO: features for experts */
 
-static int
-PyTCBDB_Contains(PyTCBDB *self, PyObject *_key) {
-  char *key = PyString_AS_STRING(_key);
-  int key_len = PyString_GET_SIZE(_key), value_len;
-
-  if (!key || !key_len) {
-    return -1;
-  }
-  Py_BEGIN_ALLOW_THREADS
-  value_len = tcbdbvsiz(self->bdb, key, key_len);
-  Py_END_ALLOW_THREADS
-
-  return (value_len != -1);
-}
-
-static PyObject *
-PyTCBDB___contains__(PyTCBDB *self, PyObject *_key) {
-  return PyBool_FromLong(PyTCBDB_Contains(self, _key) != 0);
-}
-
-static PyObject *
-PyTCBDB___getitem__(PyTCBDB *self, PyObject *_key) {
-  PyObject *ret;
-  char *key = PyString_AS_STRING(_key), *value;
-  int key_len = PyString_GET_SIZE(_key), value_len;
-
-  if (!key || !key_len) {
-    return NULL;
-  }
-  Py_BEGIN_ALLOW_THREADS
-  value = tcbdbget(self->bdb, key, key_len, &value_len);
-  Py_END_ALLOW_THREADS
-
-  if (!value) {
-    raise_tcbdb_error(self->bdb);
-    return NULL;
-  }
-  ret = PyString_FromStringAndSize(value, value_len);
-  free(value);
-  return ret;
-}
+TCXDB_Contains(PyTCBDB_Contains,PyTCBDB,tcbdbvsiz,bdb)
+TCXDB___contains__(PyTCBDB___contains__,PyTCBDB,PyTCBDB_Contains)
+TCXDB___getitem__(PyTCBDB___getitem__,PyTCBDB,tcbdbget,bdb,raise_tcbdb_error)
 
 static PyObject *
 PyTCBDB_curnew(PyTCBDB *self) {
@@ -1579,88 +1557,11 @@ PyTCBDB_values(PyTCBDB *self) {
   return ret;
 }
 
-static long
-PyTCBDB_length(PyTCBDB *self) {
-  return TCBDB_rnum(self->bdb);
-}
-
-static PyObject *
-PyTCBDB_subscript(PyTCBDB *self, PyObject *_key) {
-  PyObject *ret;
-  char *key, *value;
-  int key_len, value_len;
-
-  if (!PyString_Check(_key)) {
-    PyErr_SetString(PyExc_TypeError, "only string is allowed in []");
-    return NULL;
-  }
-  key = PyString_AS_STRING(_key);
-  key_len = PyString_GET_SIZE(_key);
-  if (!key || !key_len) {
-    return NULL;
-  }
-  Py_BEGIN_ALLOW_THREADS
-  value = tcbdbget(self->bdb, key, key_len, &value_len);
-  Py_END_ALLOW_THREADS
-
-  if (!value) {
-    raise_tcbdb_error(self->bdb);
-    return NULL;
-  }
-  ret = PyString_FromStringAndSize(value, value_len);
-  free(value);
-  return ret;
-}
-
-int
-PyTCBDB_DelItem(PyTCBDB *self, PyObject *_key) {
-  bool result;
-  char *key = PyString_AS_STRING(_key);
-  int key_len = PyString_GET_SIZE(_key);
-
-  if (!key || !key_len) {
-    return -1;
-  }
-  Py_BEGIN_ALLOW_THREADS
-  result = tcbdbout(self->bdb, key, key_len);
-  Py_END_ALLOW_THREADS
-
-  if (!result) {
-    raise_tcbdb_error(self->bdb);
-    return -1;
-  }
-  return 0;
-}
-
-int
-PyTCBDB_SetItem(PyTCBDB *self, PyObject *_key, PyObject *_value) {
-  bool result;
-  char *key = PyString_AS_STRING(_key), *value = PyString_AS_STRING(_value);
-  int key_len = PyString_GET_SIZE(_key), value_len = PyString_GET_SIZE(_value);
-
-  if (!key || !key_len || !value) {
-    return -1;
-  }
-  Py_BEGIN_ALLOW_THREADS
-  result = tcbdbput(self->bdb, key, key_len, value, value_len);
-  Py_END_ALLOW_THREADS
-
-  if (!result) {
-    raise_tcbdb_error(self->bdb);
-    return -1;
-  }
-  return 0;
-}
-
-static int
-PyTCBDB_ass_sub(PyTCBDB *self, PyObject *v, PyObject *w)
-{
-  if (w) {
-    return PyTCBDB_SetItem(self, v, w);
-  } else {
-    return PyTCBDB_DelItem(self, v);
-  }
-}
+TCXDB_length(PyTCBDB_length,PyTCBDB,TCBDB_rnum,bdb)
+TCXDB_subscript(PyTCBDB_subscript,PyTCBDB,tcbdbget,bdb,raise_tcbdb_error)
+TCXDB_DelItem(PyTCBDB_DelItem,PyTCBDB,tcbdbout,bdb,raise_tcbdb_error)
+TCXDB_SetItem(PyTCBDB_SetItem,PyTCBDB,tcbdbput,bdb,raise_tcbdb_error)
+TCXDB_ass_sub(PyTCBDB_ass_sub,PyTCBDB,PyTCBDB_SetItem,PyTCBDB_DelItem)
 
 static PyMethodDef PyTCBDB_methods[] = {
   {"errmsg", (PyCFunction)PyTCBDB_errmsg,
