@@ -23,6 +23,12 @@
 /* FIXME: refactoring */
 /* FIXME: setcmpfunc tcbdbcmplexical/decimal/cmpint32/cmpint64' */
 
+typedef enum {
+  iter_key = 0,
+  iter_value,
+  iter_item
+} itertype;
+
 /* Error Objects */
 
 static PyObject *PyTCError;
@@ -55,6 +61,8 @@ raise_tcbdb_error(TCBDB *bdb) {
 typedef struct {
   PyObject_HEAD
   TCHDB	*hdb;
+  itertype itype;
+  bool hold_itype;
 } PyTCHDB;
 
 typedef struct {
@@ -68,6 +76,7 @@ typedef struct {
   PyObject_HEAD
   PyTCBDB *bdb;
   BDBCUR *cur;
+  itertype itype;
 } PyBDBCUR;
 
 /* Macros */
@@ -431,6 +440,42 @@ typedef struct {
     return ret; \
   }
 
+#define TCXDB_iters(type,funcikey,funcival,funciitem,call) \
+  static PyObject * \
+  funcikey(type *self) { \
+    return call(self, iter_key); \
+  } \
+  \
+  static PyObject * \
+  funcival(type *self) { \
+    return call(self, iter_value); \
+  } \
+  \
+  static PyObject * \
+  funciitem(type *self) { \
+    return call(self, iter_item); \
+  }
+
+/* for TCXSTR key/value */
+#define GET_TCXSTR_KEY_VALUE(call,callarg) \
+  PyObject *ret = NULL; \
+  TCXSTR *key, *value; \
+  \
+  key = tcxstrnew(); \
+  value = tcxstrnew(); \
+  if (key && value) { \
+    bool result; \
+  \
+    Py_BEGIN_ALLOW_THREADS \
+    result = call(callarg, key, value); \
+    Py_END_ALLOW_THREADS
+
+#define CLEAR_TCXSTR_KEY_VALUE() \
+  } \
+  if (key) { tcxstrdel(key); } \
+  if (value) { tcxstrdel(value); } \
+  return ret;
+
 /*** TCHDB ***/
 
 #define PyTCHDB_TUNE(a,b,c) \
@@ -548,30 +593,54 @@ INT_KEYARGS(PyTCHDB_vsiz,PyTCHDB,vsiz,tchdbvsiz,hdb,raise_tchdb_error)
 BOOL_NOARGS(PyTCHDB_iterinit,PyTCHDB,tchdbiterinit,hdb,raise_tchdb_error,hdb)
 
 static PyObject *
-PyTCHDB_GetIter(PyObject *self) {
-  if (PyTCHDB_iterinit((PyTCHDB *)self)) {
+PyTCHDB_GetIter(PyTCHDB *self, itertype itype) {
+  if (PyTCHDB_iterinit(self)) {
     Py_INCREF(self);
-    return self;
+    /* hack */
+    if (self->hold_itype) {
+      self->hold_itype = false;
+    } else {
+      self->itype = itype;
+      if (itype != iter_key) {
+        self->hold_itype = true;
+      }
+    }
+    return (PyObject *)self;
   }
   return NULL;
 }
 
+TCXDB_iters(PyTCHDB,PyTCHDB_GetIter_keys,PyTCHDB_GetIter_values,PyTCHDB_GetIter_items,PyTCHDB_GetIter)
+
 static PyObject *
 PyTCHDB_iternext(PyTCHDB *self) {
-  void *key;
-  int key_len;
+  if (self->itype == iter_key) {
+    void *key;
+    int key_len;
 
-  Py_BEGIN_ALLOW_THREADS
-  key = tchdbiternext(self->hdb, &key_len);
-  Py_END_ALLOW_THREADS
+    Py_BEGIN_ALLOW_THREADS
+    key = tchdbiternext(self->hdb, &key_len);
+    Py_END_ALLOW_THREADS
 
-  if (key) {
-    PyObject *_key;
-    _key = PyString_FromStringAndSize(key, key_len);
-    free(key);
-    return _key;
+    if (key) {
+      PyObject *_key;
+      _key = PyString_FromStringAndSize(key, key_len);
+      free(key);
+      return _key;
+    }
+    return NULL;
+  } else {
+    GET_TCXSTR_KEY_VALUE(tchdbiternext3,self->hdb)
+    if (result) {
+      if (self->itype == iter_value) {
+        ret = PyString_FromStringAndSize(tcxstrptr(value), tcxstrsize(value));
+      } else {
+        ret = Py_BuildValue("(s#s#)", tcxstrptr(key), tcxstrsize(key),
+                                      tcxstrptr(value), tcxstrsize(value));
+      }
+    }
+    CLEAR_TCXSTR_KEY_VALUE()
   }
-  return NULL;
 }
 
 BOOL_NOARGS(PyTCHDB_sync,PyTCHDB,tchdbsync,hdb,raise_tchdb_error,hdb)
@@ -799,6 +868,15 @@ static PyMethodDef PyTCHDB_methods[] = {
   {"values", (PyCFunction)PyTCHDB_values,
    METH_NOARGS,
    ""},
+  {"iteritems", (PyCFunction)PyTCHDB_GetIter_items,
+   METH_NOARGS,
+   ""},
+  {"iterkeys", (PyCFunction)PyTCHDB_GetIter_keys,
+   METH_NOARGS,
+   ""},
+  {"itervalues", (PyCFunction)PyTCHDB_GetIter_values,
+   METH_NOARGS,
+   ""},
   /*
   {"", (PyCFunction)PyTCHDB_,
    METH_VARARGS | METH_KEYWORDS,
@@ -855,7 +933,7 @@ static PyTypeObject PyTCHDB_Type = {
   0,                                           /* tp_clear */
   0,                                           /* tp_richcompare */
   0,                                           /* tp_weaklistoffset */
-  PyTCHDB_GetIter,                             /* tp_iter */
+  PyTCHDB_GetIter_keys,                        /* tp_iter */
   (iternextfunc)PyTCHDB_iternext,              /* tp_iternext */
   PyTCHDB_methods,                             /* tp_methods */
   0,                                           /* tp_members */
@@ -949,29 +1027,15 @@ STRINGL_NOARGS(PyBDBCUR_val,PyBDBCUR,tcbdbcurval,cur,raise_tcbdb_error,bdb->bdb)
 
 static PyObject *
 PyBDBCUR_rec(PyBDBCUR *self) {
-  PyObject *ret = NULL;
-  TCXSTR *key, *value;
-
-  key = tcxstrnew();
-  value = tcxstrnew();
-  if (key && value) {
-    bool result;
-
-    Py_BEGIN_ALLOW_THREADS
-    result = tcbdbcurrec(self->cur, key, value);
-    Py_END_ALLOW_THREADS
-
-    if (result) {
-      ret = Py_BuildValue("(s#s#)", tcxstrptr(key), tcxstrsize(key),
-                                    tcxstrptr(value), tcxstrsize(value));
-    }
+  GET_TCXSTR_KEY_VALUE(tcbdbcurrec,self->cur)
+  if (result) {
+    ret = Py_BuildValue("(s#s#)", tcxstrptr(key), tcxstrsize(key),
+                                  tcxstrptr(value), tcxstrsize(value));
   }
   if (!ret) {
     raise_tcbdb_error(self->bdb->bdb);
   }
-  if (key) { tcxstrdel(key); }
-  if (value) { tcxstrdel(value); }
-  return ret;
+  CLEAR_TCXSTR_KEY_VALUE()
 }
 
 static PyObject *
@@ -1389,9 +1453,10 @@ PyTCBDB_curnew(PyTCBDB *self) {
 }
 
 static PyObject *
-PyTCBDB_GetIter(PyObject *self) {
+PyTCBDB_GetIter(PyTCBDB *self, itertype itype) {
   PyBDBCUR *cur;
-  if ((cur = (PyBDBCUR *)PyTCBDB_curnew((PyTCBDB *)self))) {
+  if ((cur = (PyBDBCUR *)PyTCBDB_curnew(self))) {
+    cur->itype = itype;
     if (PyBDBCUR_first(cur)) {
       return (PyObject *)cur;
     }
@@ -1399,6 +1464,8 @@ PyTCBDB_GetIter(PyObject *self) {
   }
   return NULL;
 }
+
+TCXDB_iters(PyTCBDB,PyTCBDB_GetIter_keys,PyTCBDB_GetIter_values,PyTCBDB_GetIter_items,PyTCBDB_GetIter)
 
 TCXDB_rnum(TCBDB_rnum,TCBDB,tcbdbrnum)
 
@@ -1730,7 +1797,7 @@ static PyTypeObject PyTCBDB_Type = {
   0,                                           /* tp_clear */
   0,                                           /* tp_richcompare */
   0,                                           /* tp_weaklistoffset */
-  PyTCBDB_GetIter,                             /* tp_iter */
+  PyTCBDB_GetIter_keys,                        /* tp_iter */
   0,                                           /* tp_iternext */
   PyTCBDB_methods,                             /* tp_methods */
   0,                                           /* tp_members */

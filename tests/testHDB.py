@@ -89,6 +89,22 @@ class TestHDB(unittest.TestCase):
     self.assertEqual(sorted(db.items()),[
       ('hamu', 'ju'), ('kiki', 'nya-nya-nya-'), ('moru', 'pui'), ('moruta', 'puipui')])
 
+    result = []
+    for key in db.iterkeys():
+      result.append(key)
+    self.assertEqual(sorted(result), ['hamu', 'kiki', 'moru', 'moruta'])
+
+    result = []
+    for value in db.itervalues():
+      result.append(value)
+    self.assertEqual(sorted(result), ['ju', 'nya-nya-nya-', 'pui', 'puipui'])
+
+    result = []
+    for (key, value) in db.iteritems():
+      result.append((key, value))
+    self.assertEqual(sorted(result), [
+      ('hamu', 'ju'), ('kiki', 'nya-nya-nya-'), ('moru', 'pui'), ('moruta', 'puipui')])
+
     # this bug is reported by id:a2c
     self.assertRaises(TypeError, eval, 'db[:]', globals(), locals())
 
