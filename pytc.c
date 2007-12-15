@@ -933,7 +933,7 @@ static PyTypeObject PyTCHDB_Type = {
   0,                                           /* tp_clear */
   0,                                           /* tp_richcompare */
   0,                                           /* tp_weaklistoffset */
-  PyTCHDB_GetIter_keys,                        /* tp_iter */
+  (getiterfunc)PyTCHDB_GetIter_keys,           /* tp_iter */
   (iternextfunc)PyTCHDB_iternext,              /* tp_iternext */
   PyTCHDB_methods,                             /* tp_methods */
   0,                                           /* tp_members */
@@ -1040,23 +1040,26 @@ PyBDBCUR_rec(PyBDBCUR *self) {
 
 static PyObject *
 PyBDBCUR_iternext(PyBDBCUR *self) {
-  char *key;
-  int key_len;
-  PyObject *ret;
-
-  Py_BEGIN_ALLOW_THREADS
-  key = tcbdbcurkey(self->cur, &key_len);
-  Py_END_ALLOW_THREADS
-
-  if (key) {
-    ret = PyString_FromStringAndSize(key, key_len);
-    free(key);
-    Py_BEGIN_ALLOW_THREADS
-    tcbdbcurnext(self->cur);
-    Py_END_ALLOW_THREADS
-    return ret;
+  /* TODO: performance up */
+  GET_TCXSTR_KEY_VALUE(tcbdbcurrec,self->cur)
+  if (result) {
+    switch (self->itype) {
+      case iter_key:
+        ret = PyString_FromStringAndSize(tcxstrptr(key), tcxstrsize(key));
+        break;
+      case iter_value:
+        ret = PyString_FromStringAndSize(tcxstrptr(value), tcxstrsize(value));
+        break;
+      case iter_item:
+        ret = Py_BuildValue("(s#s#)", tcxstrptr(key), tcxstrsize(key),
+                                      tcxstrptr(value), tcxstrsize(value));
+        break;
+    }
   }
-  return NULL;
+  Py_BEGIN_ALLOW_THREADS
+  result = tcbdbcurnext(self->cur);
+  Py_END_ALLOW_THREADS
+  CLEAR_TCXSTR_KEY_VALUE()
 }
 
 static PyMethodDef PyBDBCUR_methods[] = {
@@ -1740,6 +1743,15 @@ static PyMethodDef PyTCBDB_methods[] = {
   {"values", (PyCFunction)PyTCBDB_values,
    METH_NOARGS,
    ""},
+  {"iteritems", (PyCFunction)PyTCBDB_GetIter_items,
+   METH_NOARGS,
+   ""},
+  {"iterkeys", (PyCFunction)PyTCBDB_GetIter_keys,
+   METH_NOARGS,
+   ""},
+  {"itervalues", (PyCFunction)PyTCBDB_GetIter_values,
+   METH_NOARGS,
+   ""},
   /*
   {"", (PyCFunction)PyTCBDB_,
    METH_VARARGS | METH_KEYWORDS,
@@ -1797,7 +1809,7 @@ static PyTypeObject PyTCBDB_Type = {
   0,                                           /* tp_clear */
   0,                                           /* tp_richcompare */
   0,                                           /* tp_weaklistoffset */
-  PyTCBDB_GetIter_keys,                        /* tp_iter */
+  (getiterfunc)PyTCBDB_GetIter_keys,           /* tp_iter */
   0,                                           /* tp_iternext */
   PyTCBDB_methods,                             /* tp_methods */
   0,                                           /* tp_members */
