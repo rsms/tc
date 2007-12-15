@@ -1,4 +1,11 @@
-2007-11-15  Tasuku SUENAGA  <gunyarakun@sourceforge.jp>
+2007-12-15  Tasuku SUENAGA <gunyarakun@sourceforge.net>
+
+	* version 0.2
+	* added iterkeys/itervalues/iteritems for HDB/BDB
+	* bug fixed when spcified db[:] (thanks a2c)
+	* refactoring
+
+2007-11-15  Tasuku SUENAGA <gunyarakun@sourceforge.jp>
 
 	* first version
 	* hdb interface (thanks much for Shin ADACHI)
