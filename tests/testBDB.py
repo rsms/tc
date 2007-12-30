@@ -173,6 +173,23 @@ class TestBDB(unittest.TestCase):
     db.trancommit()
     self.assertEqual(db.get('moru'), 'pupupu')
 
+    db['nagasaki'] = 'ichiban'
+    db['nagasaki-higashi'] = 'toh'
+    db['nagasaki-nishi'] = 'zai'
+    db['nagasaki-minami'] = 'nan'
+    db['nagasaki-kita'] = 'boku'
+    db['nagasaki-hokuyodai'] = 'hokuyodai'
+    # range
+    self.assertEqual(db.range('nagasaki', False, 'nagasaki-kita', True, 3),
+                     ['nagasaki-higashi',
+                      'nagasaki-hokuyodai',
+                      'nagasaki-kita'])
+    # rangefwm
+    self.assertEqual(db.rangefwm('nagasaki', 5),
+                     ['nagasaki', 'nagasaki-higashi',
+                      'nagasaki-hokuyodai', 'nagasaki-kita',
+                      'nagasaki-minami'])
+
     # vanish
     db.vanish()
     self.assertRaises(

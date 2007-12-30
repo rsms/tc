@@ -477,6 +477,27 @@ typedef struct {
   if (value) { tcxstrdel(value); } \
   return ret;
 
+#define TCLIST2PyList() \
+  if (!list) { \
+    raise_tcbdb_error(self->bdb); \
+    return NULL; \
+  } else { \
+    PyObject *ret; \
+    int i, n = tclistnum(list); \
+    if ((ret = PyList_New(n))) { \
+      for (i = 0; i < n; i++) { \
+        int value_len; \
+        PyObject *_value; \
+        const char *value; \
+        value = tclistval(list, i, &value_len); \
+        _value = PyString_FromStringAndSize(value, value_len); \
+        PyList_SET_ITEM(ret, i, _value); \
+      } \
+    } \
+    tclistdel(list); \
+    return ret; \
+  }
+
 /*** TCHDB ***/
 
 #define PyTCHDB_TUNE(a,b,c) \
@@ -1400,25 +1421,7 @@ PyTCBDB_getlist(PyTCBDB *self, PyObject *args, PyObject *keywds) {
   list = tcbdbget4(self->bdb, key, key_len);
   Py_END_ALLOW_THREADS
 
-  if (!list) {
-    raise_tcbdb_error(self->bdb);
-    return NULL;
-  } else {
-    PyObject *ret;
-    int i, n = tclistnum(list);
-    if ((ret = PyList_New(n))) {
-      for (i = 0; i < n; i++) {
-        int value_len;
-        PyObject *_value;
-        const char *value;
-        value = tclistval(list, i, &value_len);
-        _value = PyString_FromStringAndSize(value, value_len);
-        PyList_SET_ITEM(ret, i, _value);
-      }
-    }
-    tclistdel(list);
-    return ret;
-  }
+  TCLIST2PyList()
 }
 
 INT_KEYARGS(PyTCBDB_vnum,PyTCBDB,vnum,tcbdbvnum,bdb,raise_tcbdb_error)
@@ -1433,6 +1436,44 @@ BOOL_NOARGS(PyTCBDB_tranabort,PyTCBDB,tcbdbtranabort,bdb,raise_tcbdb_error,bdb)
 STRING_NOARGS(PyTCBDB_path,PyTCBDB,tcbdbpath,bdb,raise_tcbdb_error)
 PY_U_LONG_LONG_NOARGS(PyTCBDB_rnum, PyTCBDB, tcbdbrnum, bdb, tcbdbecode, raise_tcbdb_error)
 PY_U_LONG_LONG_NOARGS(PyTCBDB_fsiz, PyTCBDB, tcbdbrnum, bdb, tcbdbecode, raise_tcbdb_error)
+
+static PyObject *
+PyTCBDB_range(PyTCBDB *self, PyObject *args, PyObject *keywds) {
+  TCLIST *list;
+  char *bkey, *ekey;
+  int bkey_len, binc, ekey_len, einc, max;
+  static char *kwlist[] = {"bkey", "binc", "ekey", "einc", "max", NULL};
+
+  if (!PyArg_ParseTupleAndKeywords(args, keywds, "z#iz#ii:range", kwlist,
+                                   &bkey, &bkey_len, &binc,
+                                   &ekey, &ekey_len, &einc, &max)) {
+    return NULL;
+  }
+  Py_BEGIN_ALLOW_THREADS
+  list = tcbdbrange(self->bdb, bkey, bkey_len, binc,
+                               ekey, ekey_len, einc, max);
+  Py_END_ALLOW_THREADS
+
+  TCLIST2PyList()
+}
+
+static PyObject *
+PyTCBDB_rangefwm(PyTCBDB *self, PyObject *args, PyObject *keywds) {
+  int max;
+  TCLIST *list;
+  char *prefix;
+  static char *kwlist[] = {"prefix", "max", NULL};
+
+  if (!PyArg_ParseTupleAndKeywords(args, keywds, "si:rangefwm", kwlist,
+                                   &prefix, &max)) {
+    return NULL;
+  }
+  Py_BEGIN_ALLOW_THREADS
+  list = tcbdbrange3(self->bdb, prefix, max);
+  Py_END_ALLOW_THREADS
+
+  TCLIST2PyList()
+}
 
 /* TODO: features for experts */
 
@@ -1726,6 +1767,12 @@ static PyMethodDef PyTCBDB_methods[] = {
   {"curnew", (PyCFunction)PyTCBDB_curnew,
    METH_NOARGS,
    "Create a cursor object."},
+  {"range", (PyCFunction)PyTCBDB_range,
+   METH_VARARGS | METH_KEYWORDS,
+   ""},
+  {"rangefwm", (PyCFunction)PyTCBDB_rangefwm,
+   METH_VARARGS | METH_KEYWORDS,
+   ""},
   {"__contains__", (PyCFunction)PyTCBDB___contains__,
    METH_O | METH_COEXIST,
    ""},
