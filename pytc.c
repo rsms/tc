@@ -237,7 +237,8 @@ typedef struct {
     static char *kwlist[] = {"key", "value", NULL}; \
   \
     if (!PyArg_ParseTupleAndKeywords(args, keywds, "s#s#:" #method, kwlist, \
-                                     &key, &key_len, &value, &value_len)) { \
+                                     &key, &key_len, \
+                                     &value, &value_len)) { \
       return NULL; \
     } \
     Py_BEGIN_ALLOW_THREADS \
@@ -324,7 +325,7 @@ typedef struct {
       PyErr_SetString(PyExc_TypeError, "only string is allowed in []"); \
       return NULL; \
     } \
-    key = PyString_AS_STRING(_key); \
+    key = PyString_AsString(_key); \
     key_len = PyString_GET_SIZE(_key); \
     if (!key || !key_len) { \
       return NULL; \
@@ -346,7 +347,7 @@ typedef struct {
   int \
   func(type *self, PyObject *_key) { \
     bool result; \
-    char *key = PyString_AS_STRING(_key); \
+    char *key = PyString_AsString(_key); \
     int key_len = PyString_GET_SIZE(_key); \
   \
     if (!key || !key_len) { \
@@ -367,7 +368,7 @@ typedef struct {
   int \
   func(type *self, PyObject *_key, PyObject *_value) { \
     bool result; \
-    char *key = PyString_AS_STRING(_key), *value = PyString_AS_STRING(_value); \
+    char *key = PyString_AsString(_key), *value = PyString_AsString(_value); \
     int key_len = PyString_GET_SIZE(_key), value_len = PyString_GET_SIZE(_value); \
   \
     if (!key || !key_len || !value) { \
@@ -398,7 +399,7 @@ typedef struct {
 #define TCXDB_Contains(func,type,call,member) \
   static int \
   func(type *self, PyObject *_key) { \
-    char *key = PyString_AS_STRING(_key); \
+    char *key = PyString_AsString(_key); \
     int key_len = PyString_GET_SIZE(_key), value_len; \
   \
     if (!key || !key_len) { \
@@ -421,7 +422,7 @@ typedef struct {
   static PyObject * \
   func(type *self, PyObject *_key) { \
     PyObject *ret; \
-    char *key = PyString_AS_STRING(_key), *value; \
+    char *key = PyString_AsString(_key), *value; \
     int key_len = PyString_GET_SIZE(_key), value_len; \
   \
     if (!key || !key_len) { \
