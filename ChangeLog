@@ -1,3 +1,9 @@
+2007-12-30  Tasuku SUENAGA <gunyarakun@sourceforge.net>
+
+	* version 0.3
+	* modified setup.py for darwin
+	* added TCBDB.range and TCBDB.rangefwm
+
 2007-12-15  Tasuku SUENAGA <gunyarakun@sourceforge.net>
 
 	* version 0.2
