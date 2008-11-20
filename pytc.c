@@ -921,7 +921,7 @@ static PySequenceMethods PyTCHDB_as_sequence = {
 };
 
 static PyMappingMethods PyTCHDB_as_mapping = {
-  (inquiry)PyTCHDB_length, /* mp_length (inquiry/lenfunc )*/
+  (lenfunc)PyTCHDB_length, /* mp_length (inquiry/lenfunc )*/
   (binaryfunc)PyTCHDB_subscript, /* mp_subscript */
   (objobjargproc)PyTCHDB_ass_sub, /* mp_ass_subscript */
 };
@@ -1821,7 +1821,7 @@ static PySequenceMethods PyTCBDB_as_sequence = {
 };
 
 static PyMappingMethods PyTCBDB_as_mapping = {
-  (inquiry)PyTCBDB_length, /* mp_length */
+  (lenfunc)PyTCBDB_length, /* mp_length */
   (binaryfunc)PyTCBDB_subscript, /* mp_subscript */
   (objobjargproc)PyTCBDB_ass_sub, /* mp_ass_subscript */
 };
@@ -1931,15 +1931,13 @@ initpytc(void)
   ADD_INT(m, TCEMISC);
 
   /* HDB */
-  ADD_INT(m, HDBTHASH);
-  ADD_INT(m, HDBTBTREE);
-
   ADD_INT(m, HDBFOPEN);
   ADD_INT(m, HDBFFATAL);
 
   ADD_INT(m, HDBTLARGE);
   ADD_INT(m, HDBTDEFLATE);
   ADD_INT(m, HDBTTCBS);
+  ADD_INT(m, HDBTEXCODEC);
 
   ADD_INT(m, HDBOREADER);
   ADD_INT(m, HDBOWRITER);
@@ -1955,6 +1953,7 @@ initpytc(void)
   ADD_INT(m, BDBTLARGE);
   ADD_INT(m, BDBTDEFLATE);
   ADD_INT(m, BDBTTCBS);
+  ADD_INT(m, BDBTEXCODEC);
 
   ADD_INT(m, BDBOREADER);
   ADD_INT(m, BDBOWRITER);
