@@ -1,5 +1,10 @@
 2008-11-22  Tasuku SUENAGA <gunyarakun@sourceforge.net>
 
+	* version 0.6
+	* supports BZIP options for HDB/BDB
+
+2008-11-22  Tasuku SUENAGA <gunyarakun@sourceforge.net>
+
 	* version 0.5
 	* added addint/adddouble for HDB/BDB
 	* raise KeyError instead of TCENOREC. Thanks to Hatem Nassrat.
