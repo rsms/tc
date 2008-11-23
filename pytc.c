@@ -44,14 +44,22 @@ static void
 raise_tchdb_error(TCHDB *hdb) {
   int ecode = tchdbecode(hdb);
   const char *errmsg = tchdberrmsg(ecode);
-  raise_pytc_error(ecode, errmsg);
+  if (ecode == TCENOREC) {
+    PyErr_SetString(PyExc_KeyError, errmsg);
+  } else {
+    raise_pytc_error(ecode, errmsg);
+  }
 }
 
 static void
 raise_tcbdb_error(TCBDB *bdb) {
   int ecode = tcbdbecode(bdb);
   const char *errmsg = tcbdberrmsg(ecode);
-  raise_pytc_error(ecode, errmsg);
+  if (ecode == TCENOREC) {
+    PyErr_SetString(PyExc_KeyError, errmsg);
+  } else {
+    raise_pytc_error(ecode, errmsg);
+  }
 }
 
 /* Objects */
@@ -802,6 +810,58 @@ TCXDB_DelItem(PyTCHDB_DelItem,PyTCHDB,tchdbout,hdb,raise_tchdb_error)
 TCXDB_SetItem(PyTCHDB_SetItem,PyTCHDB,tchdbput,hdb,raise_tchdb_error)
 TCXDB_ass_sub(PyTCHDB_ass_sub,PyTCHDB,PyTCHDB_SetItem,PyTCHDB_DelItem)
 
+#define TCXDB_addint(func,type,method,call,member,err) \
+  static PyObject * \
+  func(type *self, PyObject *args, PyObject *keywds) { \
+    char *key; \
+    int key_len, num; \
+  \
+    static char *kwlist[] = {"key", "num", NULL}; \
+  \
+    if (!PyArg_ParseTupleAndKeywords(args, keywds, \
+                                     "s#i:" #method, kwlist, \
+                                     &key, &key_len, &num)) { \
+      return NULL; \
+    } \
+    if (!key || !key_len) { \
+      err(self->member); \
+      Py_RETURN_NONE; \
+    } \
+    Py_BEGIN_ALLOW_THREADS \
+    num = call(self->member, key, key_len, num); \
+    Py_END_ALLOW_THREADS \
+  \
+    return Py_BuildValue("i", num); \
+  }
+
+#define TCXDB_adddouble(func,type,method,call,member,err) \
+  static PyObject * \
+  func(type *self, PyObject *args, PyObject *keywds) { \
+    char *key; \
+    int key_len; \
+    double num; \
+  \
+    static char *kwlist[] = {"key", "num", NULL}; \
+  \
+    if (!PyArg_ParseTupleAndKeywords(args, keywds, \
+                                     "s#d:" #method, kwlist, \
+                                     &key, &key_len, &num)) { \
+      return NULL; \
+    } \
+    if (!key || !key_len) { \
+      err(self->member); \
+      Py_RETURN_NONE; \
+    } \
+    Py_BEGIN_ALLOW_THREADS \
+    num = call(self->member, key, key_len, num); \
+    Py_END_ALLOW_THREADS \
+  \
+    return Py_BuildValue("d", num); \
+  }
+
+TCXDB_addint(PyTCHDB_addint,PyTCHDB,addint,tchdbaddint,hdb,raise_tchdb_error)
+TCXDB_adddouble(PyTCHDB_adddouble,PyTCHDB,addint,tchdbadddouble,hdb,raise_tchdb_error)
+
 /* methods of classes */
 static PyMethodDef PyTCHDB_methods[] = {
   {"errmsg", (PyCFunction)PyTCHDB_errmsg,
@@ -897,6 +957,12 @@ static PyMethodDef PyTCHDB_methods[] = {
   {"itervalues", (PyCFunction)PyTCHDB_GetIter_values,
    METH_NOARGS,
    ""},
+  {"addint", (PyCFunction)PyTCHDB_addint,
+   METH_VARARGS | METH_KEYWORDS,
+   "Add an integer to a record in a hash database object."},
+  {"adddouble", (PyCFunction)PyTCHDB_adddouble,
+   METH_VARARGS | METH_KEYWORDS,
+   "Add a real number to a record in a hash database object."},
   /*
   {"", (PyCFunction)PyTCHDB_,
    METH_VARARGS | METH_KEYWORDS,
@@ -1081,6 +1147,9 @@ PyBDBCUR_iternext(PyBDBCUR *self) {
   Py_END_ALLOW_THREADS
   CLEAR_TCXSTR_KEY_VALUE()
 }
+
+TCXDB_addint(PyTCBDB_addint,PyTCBDB,addint,tcbdbaddint,bdb,raise_tcbdb_error)
+TCXDB_adddouble(PyTCBDB_adddouble,PyTCBDB,addint,tcbdbadddouble,bdb,raise_tcbdb_error)
 
 static PyMethodDef PyBDBCUR_methods[] = {
   {"first", (PyCFunction)PyBDBCUR_first,
@@ -1798,6 +1867,12 @@ static PyMethodDef PyTCBDB_methods[] = {
   {"itervalues", (PyCFunction)PyTCBDB_GetIter_values,
    METH_NOARGS,
    ""},
+  {"addint", (PyCFunction)PyTCBDB_addint,
+   METH_VARARGS | METH_KEYWORDS,
+   "Add an integer to a record in a B+ tree database object."},
+  {"adddouble", (PyCFunction)PyTCBDB_adddouble,
+   METH_VARARGS | METH_KEYWORDS,
+   "Add a real number to a record in a B+ tree database object."},
   /*
   {"", (PyCFunction)PyTCBDB_,
    METH_VARARGS | METH_KEYWORDS,

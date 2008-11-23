@@ -4,6 +4,7 @@
 import os, sys
 import unittest
 import pytc
+import struct
 
 DBNAME = 'test.hdb'
 DBNAME2 = 'test.hdb.copy'
@@ -59,7 +60,7 @@ class TestHDB(unittest.TestCase):
     # out
     db.out('gunya')
     self.assertRaises(
-      pytc.Error,
+      KeyError,
       db.get, 'gunya')
     # optimize
     db.optimize(100, 32, 64, pytc.HDBTTCBS)
@@ -112,7 +113,7 @@ class TestHDB(unittest.TestCase):
     self.assertEqual(db['gunya'], 'tekito')
     del db['gunya']
     self.assertRaises(
-      pytc.Error,
+      KeyError,
       db.get, 'gunya')
 
     self.assert_('hamu' in db)
@@ -122,7 +123,24 @@ class TestHDB(unittest.TestCase):
     db.vanish()
     self.assertEqual(db.rnum(), 0)
 
+    # addint
+    db['int'] = struct.pack('i', 0)
+    db.addint('int', 1)
+    self.assertEqual(struct.unpack('i', db['int'])[0], 1)
+
+    # adddouble
+    db['double'] = struct.pack('d', 0.0)
+    db.adddouble('double', 1.0)
+    self.assertEqual(struct.unpack('d', db['double'])[0], 1.0)
+
+    # Error handling with no record. Thanks to Hatem Nassrat.
+    try:
+      db['absence']
+    except Exception, e:
+      self.assertEqual(type(e), KeyError)
+
     # remove
     os.remove(DBNAME)
+
 
 if __name__=='__main__': unittest.main()
