@@ -16,6 +16,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <tcbdb.h>
 #include <tchdb.h>
 #include <tcutil.h>
+#include <limits.h>
+
+#if PY_VERSION_HEX < 0x02050000
+typedef inquiry lenfunc;
+#endif
 
 /* FIXME: handle error */
 /* FIXME: refactoring */
@@ -26,6 +31,21 @@ typedef enum {
   iter_value,
   iter_item
 } itertype;
+
+static bool
+char_bounds(short x) {
+  if (x < SCHAR_MIN) {
+    PyErr_SetString(PyExc_OverflowError,
+    "signed byte integer is less than minimum");
+    return false;
+  } else if (x > SCHAR_MAX) {
+    PyErr_SetString(PyExc_OverflowError,
+    "signed byte integer is greater than maximum");
+    return false;
+  } else {
+    return true;
+  }
+}
 
 /* Error Objects */
 
@@ -510,13 +530,16 @@ typedef struct {
   static PyObject * \
   a(PyTCHDB *self, PyObject *args, PyObject *keywds) { \
     bool result; \
-    char apow, fpow; \
+    short apow, fpow; \
     PY_LONG_LONG bnum; \
     unsigned char opts; \
     static char *kwlist[] = {"bnum", "apow", "fpow", "opts", NULL}; \
   \
-    if (!PyArg_ParseTupleAndKeywords(args, keywds, "LbbB:" #b, kwlist, \
+    if (!PyArg_ParseTupleAndKeywords(args, keywds, "LhhB:" #b, kwlist, \
                                      &bnum, &apow, &fpow, &opts)) { \
+      return NULL; \
+    } \
+    if (!(char_bounds(apow) && char_bounds(fpow))) { \
       return NULL; \
     } \
     Py_BEGIN_ALLOW_THREADS \
@@ -1238,15 +1261,18 @@ static PyTypeObject PyBDBCUR_Type = {
   static PyObject * \
   a(PyTCBDB *self, PyObject *args, PyObject *keywds) { \
     bool result; \
-    char apow, fpow; \
+    short apow, fpow; \
     int lmemb, nmemb; \
     PY_LONG_LONG bnum; \
     unsigned char opts; \
     static char *kwlist[] = {"lmemb", "nmemb", "bnum", "apow", "fpow", "opts", NULL}; \
   \
-    if (!PyArg_ParseTupleAndKeywords(args, keywds, "iiLbbB:" #b, kwlist, \
+    if (!PyArg_ParseTupleAndKeywords(args, keywds, "iiLhhB:" #b, kwlist, \
                                      &lmemb, &nmemb, &bnum, \
                                      &apow, &fpow, &opts)) { \
+      return NULL; \
+    } \
+    if (!(char_bounds(apow) && char_bounds(fpow))) { \
       return NULL; \
     } \
     Py_BEGIN_ALLOW_THREADS \

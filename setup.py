@@ -17,14 +17,14 @@ if sys.platform == 'darwin':
   library_dirs.append('/sw/lib')
 
 ext = Extension('pytc',
-                libraries = ['tokyocabinet', 'z', 'pthread', 'm', 'c'],
+                libraries = ['tokyocabinet'],
                 sources = ['pytc.c'],
                 include_dirs = include_dirs,
                 library_dirs = library_dirs,
                )
 
 setup(name = 'pytc',
-      version = '0.6',
+      version = '0.7',
       description = 'Tokyo Cabinet Python bindings',
       long_description = '''
         Tokyo Cabinet Python bindings

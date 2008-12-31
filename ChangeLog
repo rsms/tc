@@ -1,3 +1,10 @@
+2008-12-31  Tasuku SUENAGA <gunyarakun@sourceforge.net>
+
+	* version 0.7
+	* Added Python 2.4 compatibility. Thanks to Vernon Tang.
+	* Allow negitive values on optimize and tune methods of pytc.BDB and pytc.HDB. Thanks to Vernon Tang.
+	* removed unnecessarily links(libz and libm). Thanks to Vernon Tang.
+
 2008-11-22  Tasuku SUENAGA <gunyarakun@sourceforge.net>
 
 	* version 0.6
