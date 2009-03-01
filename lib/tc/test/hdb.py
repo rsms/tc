@@ -1,10 +1,7 @@
-#!/usr/bin/env python
-# -*- coding:utf-8 -*-
+# encoding: utf-8
 import os, sys
-sys.path[0:0] = [os.path.join(os.path.dirname(os.path.abspath(__file__)), 
-  '..', 'build', 'lib.macosx-10.5-i386-2.5')]
 import unittest
-import tc as pytc
+import tc
 import struct
 
 DBNAME = 'test.hdb'
@@ -21,11 +18,11 @@ class TestHDB(unittest.TestCase):
   
   def testAll(self):
     # new
-    db = pytc.HDB()
+    db = tc.HDB()
     # tune
-    db.tune(100, 32, 64, pytc.HDBTTCBS)
+    db.tune(100, 32, 64, tc.HDBTTCBS)
     # open
-    db.open(DBNAME2, pytc.HDBOWRITER | pytc.HDBOCREAT)
+    db.open(DBNAME2, tc.HDBOWRITER | tc.HDBOCREAT)
     # copy
     db.copy(DBNAME)
     # close
@@ -33,7 +30,7 @@ class TestHDB(unittest.TestCase):
     os.remove(DBNAME2)
 
     # open
-    db = pytc.HDB(DBNAME, pytc.HDBOWRITER)
+    db = tc.HDB(DBNAME, tc.HDBOWRITER)
 
     # put
     db.put('hamu', 'ju')
@@ -47,7 +44,7 @@ class TestHDB(unittest.TestCase):
 
     # putkeep
     self.assertRaises(
-      pytc.Error,
+      tc.Error,
       db.putkeep, 'moru', 'puipui')
     db.putkeep('moruta', 'puipui')
     self.assertEqual(db.get('moruta'), 'puipui')
@@ -68,7 +65,7 @@ class TestHDB(unittest.TestCase):
       KeyError,
       db.get, 'gunya')
     # optimize
-    db.optimize(100, 32, 64, pytc.HDBTTCBS)
+    db.optimize(100, 32, 64, tc.HDBTTCBS)
 
     # path
     self.assertEqual(db.path(), DBNAME)
@@ -143,9 +140,15 @@ class TestHDB(unittest.TestCase):
       db['absence']
     except Exception, e:
       self.assertEqual(type(e), KeyError)
-
+    
     # remove
     os.remove(DBNAME)
+  
 
+def suite():
+  return unittest.TestSuite([
+    unittest.makeSuite(TestHDB)
+  ])
 
-if __name__=='__main__': unittest.main()
+if __name__=='__main__':
+  unittest.main()

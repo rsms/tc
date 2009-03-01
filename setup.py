@@ -1,9 +1,9 @@
 #!/usr/bin/env python
-import sys, os
-from distutils.core import setup, Extension
+import sys, os, shutil, time, platform
 from subprocess import Popen, PIPE
+from distutils.core import setup, Extension, Command
 from distutils import log
-import shutil, time, platform
+from distutils.dir_util import remove_tree
 
 # -----------------------------------------------------------------------------
 # Bootstrap
@@ -14,11 +14,16 @@ if sys.version_info < (2, 3):
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 __version__ = '?'
-execfile(os.path.join("lib", "pytc", "release.py"))
+execfile(os.path.join("lib", "tc", "release.py"))
 system_config_h = os.path.join("src", "system_config.h")
 libraries = [ ['tokyocabinet', ['tchdb.h']] ]
-sources = ['src/pytc.c']
 X86_MACHINES = ['i386', 'i686', 'i86pc', 'amd64', 'x86_64']
+sources = [
+  'src/__init__.c',
+  'src/HDB.c',
+  'src/BDB.c',
+  'src/BDBCursor.c'
+]
 
 # -----------------------------------------------------------------------------
 # Helpers
@@ -41,6 +46,19 @@ def shell_cmd(args, cwd=None):
     raise IOError('Shell command %s failed (exit status %r): %s' %\
       (args, ps.returncode, stderr))
   return stdout.strip()
+
+def read(*rnames):
+  return open(os.path.join(*rnames)).read()
+
+def rm_file(path):
+  if os.access(path, os.F_OK):
+    os.remove(path)
+    log.info('removed file %s', path)
+
+def rm_dir(path):
+  if os.access(path, os.F_OK):
+    remove_tree(path)
+    log.info('removed directory %s', path)
 
 # -----------------------------------------------------------------------------
 # Commands
@@ -125,7 +143,7 @@ class build_ext(_build_ext):
 
 from distutils.command.config import config as _config
 class config(_config):
-  description = 'configure build (almost like "./configure")'
+  description = 'configure build (automatically runned by build commands)'
   
   def initialize_options (self):
     _config.initialize_options(self)
@@ -192,16 +210,122 @@ class config(_config):
     [library]+other_libraries, library_dirs)
   
 
+class sphinx_build(Command):
+  description = 'build documentation using Sphinx'
+  user_options = [
+    ('builder=', 'b', 'builder to use; default is html'),
+    ('all', 'a', 'write all files; default is to only write new and changed files'),
+    ('reload-env', 'E', "don't use a saved environment, always read all files"),
+    ('source-dir=', 's', 'path where sources are read from (default: docs/source)'),
+    ('out-dir=', 'o', 'path where output is stored (default: docs/<builder>)'),
+    ('cache-dir=', 'd', 'path for the cached environment and doctree files (default: outdir/.doctrees)'),
+    ('conf-dir=', 'c', 'path where configuration file (conf.py) is located (default: same as source-dir)'),
+    ('set=', 'D', '<setting=value> override a setting in configuration'),
+    ('no-color', 'N', 'do not do colored output'),
+    ('pdb', 'P', 'run Pdb on exception'),
+  ]
+  boolean_options = ['all', 'reload-env', 'no-color', 'pdb']
+  
+  def initialize_options(self):
+    self.sphinx_args = []
+    self.builder = None
+    self.all = False
+    self.reload_env = False
+    self.source_dir = None
+    self.out_dir = None
+    self.cache_dir = None
+    self.conf_dir = None
+    self.set = None
+    self.no_color = False
+    self.pdb = False
+  
+  def finalize_options(self):
+    self.sphinx_args.append('sphinx-build')
+    
+    if self.builder is None:
+      self.builder = 'html'
+    self.sphinx_args.extend(['-b', self.builder])
+    
+    if self.all:
+      self.sphinx_args.append('-a')
+    if self.reload_env:
+      self.sphinx_args.append('-E')
+    if self.no_color or ('PS1' not in os.environ and 'PROMPT_COMMAND' not in os.environ):
+      self.sphinx_args.append('-N')
+    if not self.distribution.verbose:
+      self.sphinx_args.append('-q')
+    if self.pdb:
+      self.sphinx_args.append('-P')
+    
+    if self.cache_dir is not None:
+      self.sphinx_args.extend(['-d', self.cache_dir])
+    if self.conf_dir is not None:
+      self.sphinx_args.extend(['-c', self.conf_dir])
+    if self.set is not None:
+      self.sphinx_args.extend(['-D', self.set])
+    
+    if self.source_dir is None:
+      self.source_dir = os.path.join('docs', 'source')
+    if self.out_dir is None:
+      self.out_dir = os.path.join('docs', self.builder)
+    
+    self.sphinx_args.extend([self.source_dir, self.out_dir])
+  
+  def run(self):
+    try:
+      import sphinx
+      if not os.path.exists(self.out_dir):
+        if self.dry_run:
+          self.announce('skipping creation of directory %s (dry run)' % self.out_dir)
+        else:
+          self.announce('creating directory %s' % self.out_dir)
+          os.makedirs(self.out_dir)
+      if self.dry_run:
+        self.announce('skipping %s (dry run)' % ' '.join(self.sphinx_args))
+      else:
+        self.announce('running %s' % ' '.join(self.sphinx_args))
+        sphinx.main(self.sphinx_args)
+    except ImportError, e:
+      log.info('Sphinx not installed -- skipping documentation. (%s)', e)
+  
+
+from distutils.command.clean import clean as _clean
+class clean(_clean):
+  def run(self):
+    _clean.run(self)
+    log.info('removing files generated by setup.py')
+    for path in ['MANIFEST', 'src/system_config.h']:
+      rm_file(path)
+    log.info('removing generated documentation')
+    rm_dir('docs/html')
+    rm_dir('docs/latex')
+    rm_dir('docs/pdf')
+    rm_dir('docs/text')
+  
+
+from distutils.command.sdist import sdist as _sdist
+class sdist(_sdist):
+  def run(self):
+    try:
+      _sdist.run(self)
+    finally:
+      for path in ['MANIFEST']:
+        rm_file(path)
+  
+
+# -----------------------------------------------------------------------------
+# Distribution
+
 from distutils.dist import Distribution
-class PyTCDistribution(Distribution):
+class TCDistribution(Distribution):
   def __init__(self, attrs=None):
     Distribution.__init__(self, attrs)
     self.cmdclass = {
-      #'build': build,
-      'build_ext': build_ext,
       'config': config,
-      #'docs': sphinx_build,
-      #'clean': clean,
+      'build_ext': build_ext,
+      'sdist': sdist,
+      'docs': sphinx_build,
+      'clean': clean,
     }
     try:
       shell_cmd('which dpkg-buildpackage')
@@ -211,22 +335,22 @@ class PyTCDistribution(Distribution):
   
 
 # -----------------------------------------------------------------------------
+# Main
 
-# Package
-setup(name = 'pytc',
+setup(name = 'tc',
       version = __version__,
       description = 'Tokyo Cabinet Python bindings',
       long_description = '''
       Tokyo Cabinet Python bindings
       ''',
       license='BSD',
-      author = 'Tasuku SUENAGA',
-      author_email = 'gunyarakun@sourceforge.jp',
-      distclass = PyTCDistribution,
-      ext_modules = [Extension('_pytc',
+      author = 'Rasmus Andersson',
+      author_email = 'rasmus@notion.se',
+      distclass = TCDistribution,
+      ext_modules = [Extension('_tc',
         libraries = [v[0] for v in libraries],
         sources = sources
        )],
       package_dir = {'': 'lib'},
-      packages = ['pytc']
+      packages = ['tc']
      )
