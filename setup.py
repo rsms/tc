@@ -9,16 +9,16 @@ include_dirs = []
 library_dirs = ['/usr/local/lib']
 
 if sys.platform == 'darwin':
-  # darwin ports
+  # MacPorts
   include_dirs.append('/opt/local/include')
   library_dirs.append('/opt/local/lib')
-  # fink
+  # Fink
   include_dirs.append('/sw/include')
   library_dirs.append('/sw/lib')
 
-ext = Extension('pytc',
+ext = Extension('_pytc',
                 libraries = ['tokyocabinet'],
-                sources = ['pytc.c'],
+                sources = ['src/pytc.c'],
                 include_dirs = include_dirs,
                 library_dirs = library_dirs,
                )
@@ -27,7 +27,7 @@ setup(name = 'pytc',
       version = '0.7',
       description = 'Tokyo Cabinet Python bindings',
       long_description = '''
-        Tokyo Cabinet Python bindings
+      Tokyo Cabinet Python bindings
       ''',
       license='BSD',
       author = 'Tasuku SUENAGA',
