@@ -1977,11 +1977,11 @@ static PyTypeObject PyTCBDB_Type = {
 #define PyMODINIT_FUNC void
 #endif
 PyMODINIT_FUNC
-initpytc(void)
+init_pytc(void)
 {
   PyObject *m, *mod_dic;
 
-  if (!(m = Py_InitModule3("pytc", NULL,
+  if (!(m = Py_InitModule3("_pytc", NULL,
                            "TokyoCabinet python bindings."))) {
     goto exit;
   }
