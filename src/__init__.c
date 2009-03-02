@@ -9,6 +9,8 @@
 #include "BDB.h"
 #include "BDBCursor.h"
 
+PyObject *tc_module;
+PyObject *tc_Error;
 
 
 /*

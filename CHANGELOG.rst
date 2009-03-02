@@ -1,6 +1,11 @@
 Changes
 =======
 
+0.7.2
+-----
+
+* Fixed missing storage for tc.Error
+
 0.7.1
 -----
 
