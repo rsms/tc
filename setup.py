@@ -11,6 +11,12 @@ from distutils.dir_util import remove_tree
 if sys.version_info < (2, 3):
   exec('raise Error, "Python 2.3 or later is required"')
 
+# remove --no-user-cfg
+for i,arg in enumerate(sys.argv[:]):
+  if arg == '--no-user-cfg':
+    del sys.argv[i]
+    break
+
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 __version__ = '?'
@@ -345,15 +351,11 @@ setup(name = 'tc',
         "\n"+read('README.rst')
         + "\n"
         + read('CHANGELOG.rst')
-        + "\n"
-        'License\n'
-        '=======\n'
-        + read('LICENSE')
         + '\n'
         'Download\n'
         '========\n'
       ),
-      license='BSD',
+      license = read('LICENSE'),
       author = 'Rasmus Andersson',
       author_email = 'rasmus@notion.se',
       url = 'http://github.com/rsms/tc',
@@ -364,6 +366,7 @@ setup(name = 'tc',
        )],
       package_dir = {'': 'lib'},
       packages = ['tc'],
+      platforms = "ALL",
       classifiers = [
         'Development Status :: 4 - Beta',
         'License :: OSI Approved :: BSD License',
