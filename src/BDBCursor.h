@@ -12,10 +12,10 @@ typedef struct {
   tc_itertype_t itype;
 } tc_BDBCursor;
 
-PyTypeObject tc_BDBCursorType;
+extern PyTypeObject tc_BDBCursorType;
 
 PyObject *tc_BDBCursor_new(PyTypeObject *type, PyObject *args, PyObject *keywds);
-PyObject *tc_BDBCursor_dealloc(tc_BDBCursor *self);
+void tc_BDBCursor_dealloc(tc_BDBCursor *self);
 PyObject *tc_BDBCursor_first(tc_BDBCursor *self);
 
 int tc_BDBCursor_register(PyObject *module);

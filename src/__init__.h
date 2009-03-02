@@ -3,7 +3,7 @@
 
 #include "_base.h"
 
-PyObject *tc_module;
-PyObject *tc_Error;
+extern PyObject *tc_module;
+extern PyObject *tc_Error;
 
 #endif

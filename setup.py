@@ -9,17 +9,18 @@ from distutils.dir_util import remove_tree
 # Bootstrap
 
 if sys.version_info < (2, 3):
-  raise Error, "Python 2.3 or later is required"
+  exec('raise Error, "Python 2.3 or later is required"')
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 __version__ = '?'
-execfile(os.path.join("lib", "tc", "release.py"))
+exec(open(os.path.join("lib", "tc", "release.py")).read())
 system_config_h = os.path.join("src", "system_config.h")
 libraries = [ ['tokyocabinet', ['tchdb.h']] ]
 X86_MACHINES = ['i386', 'i686', 'i86pc', 'amd64', 'x86_64']
 sources = [
   'src/__init__.c',
+  'src/util.c',
   'src/HDB.c',
   'src/BDB.c',
   'src/BDBCursor.c'
@@ -285,8 +286,8 @@ class sphinx_build(Command):
       else:
         self.announce('running %s' % ' '.join(self.sphinx_args))
         sphinx.main(self.sphinx_args)
-    except ImportError, e:
-      log.info('Sphinx not installed -- skipping documentation. (%s)', e)
+    except ImportError:
+      log.info('Sphinx not installed -- skipping documentation. (%s)', sys.exc_info()[1])
   
 
 from distutils.command.clean import clean as _clean
@@ -352,5 +353,27 @@ setup(name = 'tc',
         sources = sources
        )],
       package_dir = {'': 'lib'},
-      packages = ['tc']
+      packages = ['tc'],
+      classifiers = [
+        'Development Status :: 4 - Beta',
+        'License :: OSI Approved :: MIT License',
+        'Intended Audience :: Developers',
+        'Intended Audience :: Information Technology',
+        'Natural Language :: English',
+        'Operating System :: MacOS :: MacOS X',
+        'Operating System :: POSIX',
+        'Operating System :: Unix',
+        'Programming Language :: C',
+        'Programming Language :: Python',
+        'Topic :: Database',
+        'Topic :: Software Development',
+        'Topic :: System :: Clustering',
+        'Programming Language :: Python :: 2',
+        'Programming Language :: Python :: 2.3',
+        'Programming Language :: Python :: 2.4',
+        'Programming Language :: Python :: 2.5',
+        'Programming Language :: Python :: 2.6',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.0',
+      ],
      )

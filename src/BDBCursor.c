@@ -25,7 +25,7 @@ PyObject *tc_BDBCursor_new(PyTypeObject *type, PyObject *args, PyObject *keywds)
   Py_END_ALLOW_THREADS
 
   if (!self->cur) {
-    self->ob_type->tp_free(self);
+    Py_DECREF(self);
     tc_Error_SetBDB(bdb->bdb);
     return NULL;
   }
@@ -34,14 +34,13 @@ PyObject *tc_BDBCursor_new(PyTypeObject *type, PyObject *args, PyObject *keywds)
   return (PyObject *)self;
 }
 
-PyObject *tc_BDBCursor_dealloc(tc_BDBCursor *self) {
+void tc_BDBCursor_dealloc(tc_BDBCursor *self) {
   log_trace("ENTER");
   Py_BEGIN_ALLOW_THREADS
   tcbdbcurdel(self->cur);
   Py_END_ALLOW_THREADS
   Py_XDECREF(self->bdb);
-  self->ob_type->tp_free(self);
-  Py_RETURN_NONE;
+  PyObject_Del(self);
 }
 
 PyObject *tc_BDBCursor_first(tc_BDBCursor *self) {
@@ -108,10 +107,10 @@ static PyObject *tc_BDBCursor_iternext(tc_BDBCursor *self) {
   if (result) {
     switch (self->itype) {
       case tc_iter_key_t:
-        ret = PyString_FromStringAndSize(tcxstrptr(key), tcxstrsize(key));
+        ret = PyBytes_FromStringAndSize(tcxstrptr(key), tcxstrsize(key));
         break;
       case tc_iter_value_t:
-        ret = PyString_FromStringAndSize(tcxstrptr(value), tcxstrsize(value));
+        ret = PyBytes_FromStringAndSize(tcxstrptr(value), tcxstrsize(value));
         break;
       case tc_iter_item_t:
         ret = Py_BuildValue("(s#s#)", tcxstrptr(key), tcxstrsize(key),
@@ -150,8 +149,12 @@ static PyMethodDef tc_BDBCursor_methods[] = {
 };
 
 PyTypeObject tc_BDBCursorType = {
-  PyObject_HEAD_INIT(NULL)
-  0,                                        /* ob_size */
+  #if (PY_VERSION_HEX < 0x03000000)
+    PyObject_HEAD_INIT(NULL)
+    0,                  /*ob_size*/
+  #else
+    PyVarObject_HEAD_INIT(NULL, 0)
+  #endif
   "tc.BDBCursor",                           /* tp_name */
   sizeof(tc_BDBCursor),                     /* tp_basicsize */
   0,                                        /* tp_itemsize */

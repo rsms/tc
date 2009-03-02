@@ -55,10 +55,6 @@ typedef enum {
   #define PyBytes_Concat              PyString_Concat
   #define _PyBytes_Resize             _PyString_Resize
 #endif
-#if (PY_VERSION_HEX < 0x03000000)
-  #define PyBytes_InternFromString    PyString_InternFromString
-  #define PyBytes_InternInPlace       PyString_InternInPlace
-#endif
 #if (PY_VERSION_HEX >= 0x03000000)
   #define NUMBER_Check    PyLong_Check
   #define NUMBER_AsLong   PyLong_AsLong

@@ -7,6 +7,8 @@
 
 #include "HDB.h"
 #include "BDB.h"
+#include "BDBCursor.h"
+
 
 
 /*
@@ -21,18 +23,18 @@ static PyMethodDef tc_functions[] = {
  * Module structure (Only used in Python >=3.0)
  */
 #if (PY_VERSION_HEX >= 0x03000000)
-static struct PyModuleDef tc_module = {
-  PyModuleDef_HEAD_INIT,
-  "_tc",   /* Name of module */
-  NULL,    /* module documentation, may be NULL */
-  -1,      /* size of per-interpreter state of the module,
-              or -1 if the module keeps state in global variables. */
-  tc_functions,
-  NULL,   /* Reload */
-  NULL,   /* Traverse */
-  NULL,   /* Clear */
-  NULL    /* Free */
-};
+  static struct PyModuleDef tc_module_t = {
+    PyModuleDef_HEAD_INIT,
+    "_tc",   /* Name of module */
+    NULL,    /* module documentation, may be NULL */
+    -1,      /* size of per-interpreter state of the module,
+                or -1 if the module keeps state in global variables. */
+    tc_functions,
+    NULL,   /* Reload */
+    NULL,   /* Traverse */
+    NULL,   /* Clear */
+    NULL    /* Free */
+  };
 #endif
 
 
@@ -49,7 +51,7 @@ PyMODINIT_FUNC  PyInit__tc(void)
   #if (PY_VERSION_HEX < 0x03000000)
     tc_module = Py_InitModule("_tc", tc_functions);
   #else
-    tc_module = PyModule_Create(&tc_module);
+    tc_module = PyModule_Create(&tc_module_t);
   #endif
   if (tc_module == NULL)
     goto exit;
@@ -67,17 +69,8 @@ PyMODINIT_FUNC  PyInit__tc(void)
     }
   R(tc_HDB_register, != 0)
   R(tc_BDB_register, != 0)
+  R(tc_BDBCursor_register, != 0)
   #undef R
-  
-  /*if (PyType_Ready(&PyTCHDB_Type) < 0) { goto exit; }
-  if (PyType_Ready(&PyTCBDB_Type) < 0) { goto exit; }
-  if (PyType_Ready(&PyBDBCUR_Type) < 0) { goto exit; }
-  Py_INCREF(&PyTCHDB_Type);
-  PyModule_AddObject(m, "HDB", (PyObject *)&PyTCHDB_Type);
-  Py_INCREF(&PyTCBDB_Type);
-  PyModule_AddObject(m, "BDB", (PyObject *)&PyTCBDB_Type);
-  Py_INCREF(&PyBDBCUR_Type);
-  PyModule_AddObject(m, "BDBCUR", (PyObject *)&PyBDBCUR_Type);*/
 
   /* Register consts */
   #define ADD_INT(module, NAME) PyModule_AddIntConstant(module, #NAME, NAME)

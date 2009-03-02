@@ -48,7 +48,7 @@
         PyObject *_value; \
         const char *value; \
         value = tclistval(list, i, &value_len); \
-        _value = PyString_FromStringAndSize(value, value_len); \
+        _value = PyBytes_FromStringAndSize(value, value_len); \
         PyList_SET_ITEM(ret, i, _value); \
       } \
     } \
@@ -84,7 +84,7 @@ static PyObject *tc_BDB_errmsg(PyTypeObject *type, PyObject *args, PyObject *key
                                    &ecode)) {
     return NULL;
   }
-  return PyString_FromString(tcbdberrmsg(ecode));
+  return PyBytes_FromString(tcbdberrmsg(ecode));
 }
 
 static void tc_BDB_dealloc(tc_BDB *self) {
@@ -104,7 +104,7 @@ static void tc_BDB_dealloc(tc_BDB *self) {
     tcbdbdel(self->bdb);
     Py_END_ALLOW_THREADS
   }
-  self->ob_type->tp_free(self);
+  PyObject_Del(self);
 }
 
 static PyObject *tc_BDB_new(PyTypeObject *type, PyObject *args, PyObject *keywds) {
@@ -145,7 +145,7 @@ static PyObject *tc_BDB_new(PyTypeObject *type, PyObject *args, PyObject *keywds
 
 static PyObject *tc_BDB_ecode(tc_BDB *self) {
   log_trace("ENTER");
-  return PyInt_FromLong((long)tcbdbecode(self->bdb));
+  return NUMBER_FromLong((long)tcbdbecode(self->bdb));
 }
 
 TC_BOOL_NOARGS(tc_BDB_setmutex,tc_BDB,tcbdbsetmutex,bdb,tc_Error_SetBDB,bdb);
@@ -262,8 +262,8 @@ static PyObject *tc_BDB_putlist(tc_BDB *self, PyObject *args, PyObject *keywds) 
   value_size = PyList_Size(value);
   for (i = 0; i < value_size; i++) {
     PyObject *v = PyList_GetItem(value, i);
-    if (PyString_Check(v)) {
-      tclistpush(tcvalue, PyString_AsString(v), PyString_Size(v));
+    if (PyBytes_Check(v)) {
+      tclistpush(tcvalue, PyBytes_AsString(v), PyBytes_Size(v));
     }
   }
   Py_BEGIN_ALLOW_THREADS
@@ -423,7 +423,7 @@ static PyObject *tc_BDB_keys(tc_BDB *self) {
     Py_END_ALLOW_THREADS
 
     if (!key) { break; }
-    _key = PyString_FromStringAndSize(key, key_len);
+    _key = PyBytes_FromStringAndSize(key, key_len);
     free(key);
     if (!_key) {
       Py_DECREF(ret);
@@ -529,7 +529,7 @@ static PyObject *tc_BDB_values(tc_BDB *self) {
     Py_END_ALLOW_THREADS
 
     if (!value) { break; }
-    _value = PyString_FromStringAndSize(value, value_len);
+    _value = PyBytes_FromStringAndSize(value, value_len);
     free(value);
     if (!_value) {
       Py_DECREF(ret);
@@ -668,8 +668,12 @@ static PyMappingMethods tc_BDB_as_mapping = {
 /* type objects */
 
 PyTypeObject tc_BDBType = {
-  PyObject_HEAD_INIT(NULL)
-  0,                                           /* ob_size */
+  #if (PY_VERSION_HEX < 0x03000000)
+    PyObject_HEAD_INIT(NULL)
+    0,                  /*ob_size*/
+  #else
+    PyVarObject_HEAD_INIT(NULL, 0)
+  #endif
   "tc.BDB",                                  /* tp_name */
   sizeof(tc_BDB),                             /* tp_basicsize */
   0,                                           /* tp_itemsize */

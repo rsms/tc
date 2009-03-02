@@ -11,7 +11,7 @@ typedef struct {
   bool hold_itype;
 } tc_HDB;
 
-PyTypeObject tc_HDBType;
+extern PyTypeObject tc_HDBType;
 
 int tc_HDB_register(PyObject *module);
 

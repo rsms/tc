@@ -58,7 +58,7 @@ static PyObject *tc_HDB_errmsg(PyTypeObject *type, PyObject *args, PyObject *key
                                    &ecode)) {
     return NULL;
   }
-  return PyString_FromString(tchdberrmsg(ecode));
+  return PyBytes_FromString(tchdberrmsg(ecode));
 }
 
 static void tc_HDB_dealloc(tc_HDB *self) {
@@ -76,7 +76,7 @@ static void tc_HDB_dealloc(tc_HDB *self) {
     tchdbdel(self->hdb);
     Py_END_ALLOW_THREADS
   }
-  self->ob_type->tp_free(self);
+  PyObject_Del(self);
 }
 
 static PyObject *tc_HDB_new(PyTypeObject *type, PyObject *args, PyObject *keywds) {
@@ -115,7 +115,7 @@ static PyObject *tc_HDB_new(PyTypeObject *type, PyObject *args, PyObject *keywds
 
 static PyObject *tc_HDB_ecode(tc_HDB *self) {
   log_trace("ENTER");
-  return PyInt_FromLong((long)tchdbecode(self->hdb));
+  return NUMBER_FromLong((long)tchdbecode(self->hdb));
 }
 
 TC_BOOL_NOARGS(tc_HDB_setmutex,tc_HDB,tchdbsetmutex,hdb,tc_Error_SetHDB,hdb);
@@ -164,7 +164,7 @@ static PyObject *tc_HDB_iternext(tc_HDB *self) {
 
     if (key) {
       PyObject *_key;
-      _key = PyString_FromStringAndSize(key, key_len);
+      _key = PyBytes_FromStringAndSize(key, key_len);
       free(key);
       return _key;
     }
@@ -173,7 +173,7 @@ static PyObject *tc_HDB_iternext(tc_HDB *self) {
     TC_GET_TCXSTR_KEY_VALUE(tchdbiternext3,self->hdb)
     if (result) {
       if (self->itype == tc_iter_value_t) {
-        ret = PyString_FromStringAndSize(tcxstrptr(value), tcxstrsize(value));
+        ret = PyBytes_FromStringAndSize(tcxstrptr(value), tcxstrsize(value));
       } else {
         ret = Py_BuildValue("(s#s#)", tcxstrptr(key), tcxstrsize(key),
                                       tcxstrptr(value), tcxstrsize(value));
@@ -213,7 +213,7 @@ static PyObject *tc_HDB_keys(tc_HDB *self) {
     key = tchdbiternext(self->hdb, &key_len);
     Py_END_ALLOW_THREADS
     if (!key) { break; }
-    _key = PyString_FromStringAndSize(key, key_len);
+    _key = PyBytes_FromStringAndSize(key, key_len);
     free(key);
     if (!_key) {
       Py_DECREF(ret);
@@ -254,13 +254,13 @@ static PyObject *tc_HDB_items(tc_HDB *self) {
 
     if (value) {
       PyObject *_key, *_value;
-      _key = PyString_FromStringAndSize(key, key_len);
+      _key = PyBytes_FromStringAndSize(key, key_len);
       free(key);
       if (!_key) {
         Py_DECREF(ret);
         return NULL;
       }
-      _value = PyString_FromStringAndSize(value, value_len);
+      _value = PyBytes_FromStringAndSize(value, value_len);
       free(value);
       if (!_value) {
         Py_DECREF(_key);
@@ -302,7 +302,7 @@ static PyObject *tc_HDB_values(tc_HDB *self) {
 
     if (value) {
       PyObject *_value;
-      _value = PyString_FromStringAndSize(value, value_len);
+      _value = PyBytes_FromStringAndSize(value, value_len);
       free(value);
       if (!_value) {
         Py_DECREF(ret);
@@ -416,8 +416,12 @@ static PyMappingMethods tc_HDB_as_mapping = {
 };
 
 PyTypeObject tc_HDBType = {
-  PyObject_HEAD_INIT(NULL)
-  0,                                           /* ob_size */
+  #if (PY_VERSION_HEX < 0x03000000)
+    PyObject_HEAD_INIT(NULL)
+    0,                  /*ob_size*/
+  #else
+    PyVarObject_HEAD_INIT(NULL, 0)
+  #endif
   "tc.HDB",                                  /* tp_name */
   sizeof(tc_HDB),                             /* tp_basicsize */
   0,                                           /* tp_itemsize */

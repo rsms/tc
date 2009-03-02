@@ -32,7 +32,7 @@
       err(self->member); \
       return NULL; \
     } \
-    ret = PyString_FromString(str); \
+    ret = PyBytes_FromString(str); \
     return ret; \
   } \
 
@@ -52,7 +52,7 @@
       err(self->errmember); \
       return NULL; \
     } \
-    ret = PyString_FromStringAndSize(str, str_len); \
+    ret = PyBytes_FromStringAndSize(str, str_len); \
     free(str); \
     return ret; \
   } \
@@ -119,7 +119,7 @@
       error(self->member); \
       return NULL; \
     } \
-    return PyInt_FromLong((long)ret); \
+    return NUMBER_FromLong((long)ret); \
   }
 
 /* NOTE: this function dealloc pointer returned by tc */
@@ -143,7 +143,7 @@
       error(self->member); \
       return NULL; \
     } \
-    ret = PyString_FromStringAndSize(value, value_len); \
+    ret = PyBytes_FromStringAndSize(value, value_len); \
     free(value); \
     return ret; \
   }
@@ -241,12 +241,12 @@
     char *key, *value; \
     int key_len, value_len; \
   \
-    if (!PyString_Check(_key)) { \
+    if (!PyBytes_Check(_key)) { \
       PyErr_SetString(PyExc_TypeError, "only string is allowed in []"); \
       return NULL; \
     } \
-    key = PyString_AsString(_key); \
-    key_len = PyString_GET_SIZE(_key); \
+    key = PyBytes_AsString(_key); \
+    key_len = PyBytes_GET_SIZE(_key); \
     if (!key || !key_len) { \
       return NULL; \
     } \
@@ -258,7 +258,7 @@
       err(self->member); \
       return NULL; \
     } \
-    ret = PyString_FromStringAndSize(value, value_len); \
+    ret = PyBytes_FromStringAndSize(value, value_len); \
     free(value); \
     return ret; \
   } \
@@ -267,8 +267,8 @@
   int \
   func(type *self, PyObject *_key) { \
     bool result; \
-    char *key = PyString_AsString(_key); \
-    int key_len = PyString_GET_SIZE(_key); \
+    char *key = PyBytes_AsString(_key); \
+    int key_len = PyBytes_GET_SIZE(_key); \
   \
     if (!key || !key_len) { \
       return -1; \
@@ -288,8 +288,8 @@
   int \
   func(type *self, PyObject *_key, PyObject *_value) { \
     bool result; \
-    char *key = PyString_AsString(_key), *value = PyString_AsString(_value); \
-    int key_len = PyString_GET_SIZE(_key), value_len = PyString_GET_SIZE(_value); \
+    char *key = PyBytes_AsString(_key), *value = PyBytes_AsString(_value); \
+    int key_len = PyBytes_GET_SIZE(_key), value_len = PyBytes_GET_SIZE(_value); \
   \
     if (!key || !key_len || !value) { \
       return -1; \
@@ -319,8 +319,8 @@
 #define TC_XDB_Contains(func,type,call,member) \
   static int \
   func(type *self, PyObject *_key) { \
-    char *key = PyString_AsString(_key); \
-    int key_len = PyString_GET_SIZE(_key), value_len; \
+    char *key = PyBytes_AsString(_key); \
+    int key_len = PyBytes_GET_SIZE(_key), value_len; \
   \
     if (!key || !key_len) { \
       return -1; \
@@ -342,8 +342,8 @@
   static PyObject * \
   func(type *self, PyObject *_key) { \
     PyObject *ret; \
-    char *key = PyString_AsString(_key), *value; \
-    int key_len = PyString_GET_SIZE(_key), value_len; \
+    char *key = PyBytes_AsString(_key), *value; \
+    int key_len = PyBytes_GET_SIZE(_key), value_len; \
   \
     if (!key || !key_len) { \
       return NULL; \
@@ -356,7 +356,7 @@
       err(self->member); \
       return NULL; \
     } \
-    ret = PyString_FromStringAndSize(value, value_len); \
+    ret = PyBytes_FromStringAndSize(value, value_len); \
     free(value); \
     return ret; \
   }

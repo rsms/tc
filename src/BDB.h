@@ -11,7 +11,7 @@ typedef struct {
   PyObject *cmpop;
 } tc_BDB;
 
-PyTypeObject tc_BDBType;
+extern PyTypeObject tc_BDBType;
 
 int tc_BDB_register(PyObject *module);
 

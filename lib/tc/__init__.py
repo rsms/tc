@@ -1,5 +1,5 @@
 # encoding: utf-8
 '''Tokyo Cabinet
 '''
-from pytc.release import __version__
-from _pytc import *
+from tc.release import __version__
+from _tc import *
