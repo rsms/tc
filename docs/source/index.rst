@@ -4,7 +4,7 @@ Overview
 ===============================
 
 Welcome to the documentation of Tokyo Cabinet Python bindings |release|.
-More information can be found at http://github.com/rsms/pytc
+More information can be found at http://github.com/rsms/tc
 
 
 Starting points

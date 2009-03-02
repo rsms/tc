@@ -38,7 +38,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General substitutions.
-project = 'pytc'
+project = 'tc'
 copyright = 'Rasmus Andersson'
 
 # The default replacements for |version| and |release|, also used in various
@@ -147,7 +147,7 @@ html_use_smartypants = True
 #html_file_suffix = ''
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'pytcdoc'
+htmlhelp_basename = 'tcdoc'
 
 
 # Options for LaTeX output
@@ -162,7 +162,7 @@ htmlhelp_basename = 'pytcdoc'
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, document class [howto/manual]).
 latex_documents = [
-  ('index', 'pytc.tex', 'pytc documentation',
+  ('index', 'tc.tex', 'tc documentation',
    'Rasmus Andersson', 'manual'),
 ]
 

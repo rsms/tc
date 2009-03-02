@@ -75,7 +75,7 @@ typedef enum {
 #endif
 
 /* Module identifier, used in logging */
-#define MOD_IDENT "pytc"
+#define MOD_IDENT "tc"
 
 /* Converting MY_MACRO to "<value of MY_MACRO>" i.e. QUOTE(PY_MAJOR_VERSION) -> "2" */
 #define _QUOTE(x) #x

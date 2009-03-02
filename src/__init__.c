@@ -145,7 +145,7 @@ PyMODINIT_FUNC  PyInit__tc(void)
 exit:
   if (PyErr_Occurred()) {
     PyErr_Print();
-    PyErr_SetString(PyExc_ImportError, "can't initialize module _pytc");
+    PyErr_SetString(PyExc_ImportError, "can't initialize module _tc");
     Py_XDECREF(tc_module);
     tc_module = NULL;
   }
