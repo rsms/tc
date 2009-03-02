@@ -11,12 +11,6 @@ from distutils.dir_util import remove_tree
 if sys.version_info < (2, 3):
   exec('raise Error, "Python 2.3 or later is required"')
 
-# remove --no-user-cfg
-for i,arg in enumerate(sys.argv[:]):
-  if arg == '--no-user-cfg':
-    del sys.argv[i]
-    break
-
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 __version__ = '?'
