@@ -328,11 +328,11 @@ class TCDistribution(Distribution):
       'docs': sphinx_build,
       'clean': clean,
     }
-    try:
-      shell_cmd('which dpkg-buildpackage')
-      self.cmdclass['debian'] = debian
-    except IOError:
-      pass
+    #try:
+    #  shell_cmd('which dpkg-buildpackage')
+    #  self.cmdclass['debian'] = debian
+    #except IOError:
+    #  pass
   
 
 # -----------------------------------------------------------------------------
