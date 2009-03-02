@@ -340,10 +340,19 @@ class TCDistribution(Distribution):
 
 setup(name = 'tc',
       version = __version__,
-      description = 'Tokyo Cabinet Python bindings',
-      long_description = '''
-      Tokyo Cabinet Python bindings
-      ''',
+      description = 'Python bindings to the Tokyo Cabinet database library',
+      long_description = (
+        "\n"+read('README.rst')
+        + "\n"
+        + read('CHANGELOG.rst')
+        + "\n"
+        'License\n'
+        '=======\n'
+        + read('LICENSE')
+        + '\n'
+        'Download\n'
+        '========\n'
+      ),
       license='BSD',
       author = 'Rasmus Andersson',
       author_email = 'rasmus@notion.se',
