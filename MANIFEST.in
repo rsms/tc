@@ -1,0 +1,11 @@
+include LICENSE
+include README.rst
+include CHANGELOG.rst
+include MANIFEST.in
+include setup.py
+
+graft docs/source
+graft lib
+graft src
+
+global-exclude .DS_Store *.log
