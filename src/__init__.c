@@ -7,6 +7,7 @@
 
 #include "HDB.h"
 #include "BDB.h"
+#include "FDB.h"
 #include "BDBCursor.h"
 
 PyObject *tc_module;
@@ -71,6 +72,7 @@ PyMODINIT_FUNC  PyInit__tc(void)
     }
   R(tc_HDB_register, != 0)
   R(tc_BDB_register, != 0)
+  R(tc_FDB_register, != 0)
   R(tc_BDBCursor_register, != 0)
   #undef R
 
@@ -102,6 +104,17 @@ PyMODINIT_FUNC  PyInit__tc(void)
   ADD_INT(tc_module, TCEKEEP);
   ADD_INT(tc_module, TCENOREC);
   ADD_INT(tc_module, TCEMISC);
+
+  /* FDB */
+  ADD_INT(tc_module, FDBFOPEN);
+  ADD_INT(tc_module, FDBFFATAL);
+
+  ADD_INT(tc_module, FDBOREADER);
+  ADD_INT(tc_module, FDBOWRITER);
+  ADD_INT(tc_module, FDBOCREAT);
+  ADD_INT(tc_module, FDBOTRUNC);
+  ADD_INT(tc_module, FDBONOLCK);
+  ADD_INT(tc_module, FDBOLCKNB);
 
   /* HDB */
   ADD_INT(tc_module, HDBFOPEN);
