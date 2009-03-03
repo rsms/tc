@@ -3,6 +3,7 @@
 
 /* Private --------------------------------------------------------------- */
 
+/* Sets the error message */
 static void tc_Error_SetFDB(TCFDB *db) {
     int ecode = tcfdbecode(db);
     if (ecode == TCENOREC) {
@@ -12,53 +13,59 @@ static void tc_Error_SetFDB(TCFDB *db) {
     }
 }
 
-#define TC_FDB_TUNE_OR_OPT(a,b,c) \
-  static PyObject * \
-  a(tc_FDB *self, PyObject *args, PyObject *keywds) { \
-    log_trace("ENTER");\
+/* Used for Tune and Optimize */
+#define TC_FDB_TUNE_OPTIMIZE(func, method, call) \
+static PyObject * func(tc_FDB *self, PyObject *args, PyObject *keywds) { \
     bool result; \
     int width; \
     PY_LONG_LONG limsiz; \
     static char *kwlist[] = {"width", "limsiz", NULL}; \
-  \
-    if (!PyArg_ParseTupleAndKeywords(args, keywds, "iL:" #b, kwlist, \
-                                     &width, &limsiz)) { \
-      return NULL; \
+    if (!PyArg_ParseTupleAndKeywords(args, keywds, "iL:" #method, kwlist, &width, &limsiz)) { \
+        return NULL; \
     } \
+\
     Py_BEGIN_ALLOW_THREADS \
-    result = c(self->db, width, limsiz); \
+    result = call(self->db, width, limsiz); \
     Py_END_ALLOW_THREADS \
-  \
+\
     if (!result) { \
-      tc_Error_SetFDB(self->db); \
-      return NULL; \
+        tc_Error_SetFDB(self->db); \
+        return NULL; \
     } \
     Py_RETURN_NONE; \
-  }
+}
 
-#define TC_FDB_PUT(func,method,call) \
-  static PyObject * \
-  func(tc_FDB *self, PyObject *args, PyObject *keywds) { \
+/* Used for Put, Putkeep and Putcat */
+#define TC_FDB_PUT(func, method, call) \
+static PyObject * func(tc_FDB *self, PyObject *args, PyObject *keywds) { \
+    printf(#func "\n"); \
+\
     bool result; \
-    PY_LONG_LONG id; \
+    PY_LONG_LONG key; \
     char *value; \
     int value_len; \
-    static char *kwlist[] = {"id", "value", NULL}; \
-  \
+    static char *kwlist[] = {"key", "value", NULL}; \
+\
     if (!PyArg_ParseTupleAndKeywords(args, keywds, "Ls#:" #method, kwlist, \
-                                     &id, &value, &value_len)) { \
-      return NULL; \
+                                     &key, &value, &value_len)) { \
+        printf("NEED TO ADD ERROR MESSAGE!"); \
+        return NULL; \
     } \
+\
+    printf("Key %lld\n", key); \
+\
     Py_BEGIN_ALLOW_THREADS \
-    result = call(self->db, id, value, value_len); \
+    result = call(self->db, key, value, value_len); \
     Py_END_ALLOW_THREADS \
-  \
+\
     if (!result) { \
-      tc_Error_SetFDB(self->db); \
-      return NULL; \
+        printf("ERROR!\n"); \
+        tc_Error_SetFDB(self->db); \
+        return NULL; \
     } \
     Py_RETURN_NONE; \
-  }
+}
+
 
 #define TC_BOOL_LLKEYARGS(func,type,method,call,member,error,errmember) \
   static PyObject * \
@@ -105,6 +112,7 @@ static void tc_Error_SetFDB(TCFDB *db) {
   }
 
 /* NOTE: this function dealloc pointer returned by tc */
+/*
 #define TC_STRINGL_LLKEYARGS(func,type,method,call,member,error) \
   static PyObject * \
   func(type *self, PyObject *args, PyObject *keywds) { \
@@ -130,14 +138,22 @@ static void tc_Error_SetFDB(TCFDB *db) {
     free(value); \
     return ret; \
   }
+*/
 
 /* Public --------------------------------------------------------------- */
 
-static long tc_FDB_hash(PyObject *self) {
-    PyErr_SetString(PyExc_TypeError, "FDB objects are unhashable");
-    return -1L;
+/**
+ * tc.FDB.ecode()
+ * look at tcfdbecode
+ */
+static PyObject *tc_FDB_ecode(tc_FDB *self) {
+    return NUMBER_FromLong((long)tcfdbecode(self->db));
 }
 
+/**
+ * tc.FDB.errmsg(ecode)
+ * look at tcfdberrmsg
+ */
 static PyObject *tc_FDB_errmsg(PyTypeObject *type, PyObject *args, PyObject *keywds) {
     int ecode;
     static char *kwlist[] = {"ecode", NULL};
@@ -148,6 +164,10 @@ static PyObject *tc_FDB_errmsg(PyTypeObject *type, PyObject *args, PyObject *key
     return PyBytes_FromString(tcfdberrmsg(ecode));
 }
 
+/**
+ * tc.FDB.__del__()
+ * look at tcfdbdel
+ */
 static void tc_FDB_dealloc(tc_FDB *self) {
     if (self->db) {
         Py_BEGIN_ALLOW_THREADS
@@ -157,6 +177,10 @@ static void tc_FDB_dealloc(tc_FDB *self) {
     PyObject_Del(self);
 }
 
+/**
+ * tc.FDB.__new__()
+ * look at tcfdbnew and tcfdbopen
+ */
 static PyObject *tc_FDB_new(PyTypeObject *type, PyObject *args, PyObject *keywds) {
     tc_FDB *self;
     if (!(self = (tc_FDB *)type->tp_alloc(type, 0))) {
@@ -178,10 +202,10 @@ static PyObject *tc_FDB_new(PyTypeObject *type, PyObject *args, PyObject *keywds
                 if (result) {
                     return (PyObject *)self;
                 }
+                tc_Error_SetFDB(self->db);
             } else {
                 return (PyObject *)self;
             }
-            tc_Error_SetFDB(self->db);
         }
     } else {
         PyErr_SetString(PyExc_MemoryError, "Cannot alloc TCFDB instance");
@@ -190,19 +214,122 @@ static PyObject *tc_FDB_new(PyTypeObject *type, PyObject *args, PyObject *keywds
     return NULL;
 }
 
-static PyObject *tc_FDB_ecode(tc_FDB *self) {
-    return NUMBER_FromLong((long)tcfdbecode(self->db));
+/**
+ * tc.FDB.__hash__()
+ * not supported
+ */
+static long tc_FDB_hash(PyObject *self) {
+    PyErr_SetString(PyExc_TypeError, "FDB objects are unhashable");
+    return -1L;
 }
 
+/**
+ * tc.FDB.tune(width, limsiz)
+ * look at tcfdbtune
+ */
+TC_FDB_TUNE_OPTIMIZE(tc_FDB_tune, tune, tcfdbtune);
+
+/**
+ * tc.FDB.optimize(width, limsiz)
+ * look at tcfdboptimize
+ */
+TC_FDB_TUNE_OPTIMIZE(tc_FDB_optimize, optimize, tcfdboptimize);
+
+/**
+ * tc.FDB.put(key, value)
+ * look at tcfdbput
+ */
+TC_FDB_PUT(tc_FDB_put, put, tcfdbput);
+
+/**
+ * tc.FDB.putkeep(key, value)
+ * look at tcfdbputkeep
+ */
+TC_FDB_PUT(tc_FDB_putkeep, putkeep, tcfdbputkeep);
+
+/**
+ * tc.FDB.putcat(key, value)
+ * look at tcfdbputcat
+ */
+TC_FDB_PUT(tc_FDB_putcat, putcat, tcfdbputcat);
+
+/**
+ * tc.FDB.get(key)
+ * look at tcfdbget
+ */
+static PyObject *tc_FDB_get(tc_FDB *self, PyObject *args) {
+    printf("tc_FDB_get\n");
+    PyObject *ret;
+    char *value;
+    int value_len;
+    PY_LONG_LONG key;
+
+    if (!PyArg_ParseTuple(args, "L:get", &key)) {
+        PyErr_SetString(PyExc_TypeError, "Argument key is of wrong type 1");
+        return NULL;
+    }
+
+    printf("KEY: %lld\n", key);
+
+    Py_BEGIN_ALLOW_THREADS
+    value = tcfdbget(self->db, key, &value_len);
+    Py_END_ALLOW_THREADS
+
+    if (!value) {
+        printf("ERROR!\n");
+        tc_Error_SetFDB(self->db);
+        return NULL;
+    }
+
+    ret = PyBytes_FromStringAndSize(value, value_len);
+    free(value);
+    return ret;
+}
+
+/**
+ * tc.FDB.__getitem__(key)
+ * look at tcfdbget
+ */
+static PyObject *tc_FDB___getitem__(tc_FDB *self, PyObject *_key) {
+    printf("tc_FDB___getitem__\n");
+    PyObject *ret;
+    char *value;
+    int value_len;
+    PY_LONG_LONG key;
+
+    key = PyLong_AsLongLong(_key);
+
+    if (PyErr_ExceptionMatches(PyExc_TypeError)) {
+        PyErr_Clear();
+        PyErr_SetString(PyExc_TypeError, "Argument key is of wrong type 2");
+        return NULL;
+    }
+
+    printf("KEY: %lld\n", key);
+
+    Py_BEGIN_ALLOW_THREADS
+    value = tcfdbget(self->db, key, &value_len);
+    Py_END_ALLOW_THREADS
+
+    if (!value) {
+        printf("ERROR!\n");
+        tc_Error_SetFDB(self->db);
+        return NULL;
+    }
+
+    ret = PyBytes_FromStringAndSize(value, value_len);
+    free(value);
+    return ret;
+}
+
+
 TC_BOOL_NOARGS(tc_FDB_setmutex,tc_FDB,tcfdbsetmutex,db,tc_Error_SetFDB,db);
-TC_FDB_TUNE_OR_OPT(tc_FDB_tune, tune, tcfdbtune);
+
 TC_XDB_OPEN(tc_FDB_open,tc_FDB,tc_FDB_new,tcfdbopen,db,tc_FDB_dealloc,tc_Error_SetFDB);
 TC_BOOL_NOARGS(tc_FDB_close,tc_FDB,tcfdbclose,db,tc_Error_SetFDB,db);
-TC_FDB_PUT(tc_FDB_put, put, tcfdbput);
-TC_FDB_PUT(tc_FDB_putkeep, putkeep, tcfdbputkeep);
-TC_FDB_PUT(tc_FDB_putcat, putcat, tcfdbputcat);
+
 TC_BOOL_LLKEYARGS(tc_FDB_out,tc_FDB,out,tcfdbout,db,tc_Error_SetFDB,db);
-TC_STRINGL_LLKEYARGS(tc_FDB_get,tc_FDB,get,tcfdbget,db,tc_Error_SetFDB);
+/* TC_STRINGL_LLKEYARGS(tc_FDB_get,tc_FDB,get,tcfdbget,db,tc_Error_SetFDB); */
 TC_INT_LLKEYARGS(tc_FDB_vsiz,tc_FDB,vsiz,tcfdbvsiz,db,tc_Error_SetFDB);
 
 TC_BOOL_NOARGS(tc_FDB_iterinit,tc_FDB,tcfdbiterinit,db,tc_Error_SetFDB,db);
@@ -261,7 +388,6 @@ static PyObject *tc_FDB_iternext(tc_FDB *self) {
 }
 
 TC_BOOL_NOARGS(tc_FDB_sync,tc_FDB,tcfdbsync,db,tc_Error_SetFDB,db);
-TC_FDB_TUNE_OR_OPT(tc_FDB_optimize, optimize, tcfdboptimize);
 TC_STRING_NOARGS(tc_FDB_path,tc_FDB,tcfdbpath,db,tc_Error_SetFDB);
 TC_U_LONG_LONG_NOARGS(tc_FDB_rnum, tc_FDB, tcfdbrnum, db, tcfdbecode, tc_Error_SetFDB);
 TC_U_LONG_LONG_NOARGS(tc_FDB_fsiz, tc_FDB, tcfdbrnum, db, tcfdbecode, tc_Error_SetFDB);
@@ -269,8 +395,7 @@ TC_BOOL_NOARGS(tc_FDB_vanish,tc_FDB,tcfdbvanish,db,tc_Error_SetFDB,db);
 TC_BOOL_PATHARGS(tc_FDB_copy, tc_FDB, copy, tcfdbcopy, db, tc_Error_SetFDB);
 /* todo: features for experts */
 
-static int tc_FDB_Contains(tc_FDB *self, PyObject *args)
-{
+static int tc_FDB_Contains(tc_FDB *self, PyObject *args) {
     PY_LONG_LONG key;
     int value_len;
 
@@ -286,29 +411,6 @@ static int tc_FDB_Contains(tc_FDB *self, PyObject *args)
 
 // TC_XDB_Contains(tc_FDB_Contains,tc_FDB,tcfdbvsiz,db);
 TC_XDB___contains__(tc_FDB___contains__,tc_FDB,tc_FDB_Contains);
-
-static PyObject *tc_FDB___getitem__(tc_FDB *self, PyObject *args) {
-    PyObject *ret;
-    PY_LONG_LONG key;
-    char *value;
-    int value_len;
-
-    if (!PyArg_ParseTuple(args, "L:__getitem__", &key))
-        return NULL;
-
-    Py_BEGIN_ALLOW_THREADS \
-    value = tcfdbget(self->db, key, &value_len);
-    Py_END_ALLOW_THREADS \
-
-    if (!value) {
-        tc_Error_SetFDB(self->db);
-        return NULL;
-    }
-
-    ret = PyBytes_FromStringAndSize(value, value_len);
-    free(value);
-    return ret;
-}
 
 // TC_XDB___getitem__(tc_FDB___getitem__,tc_FDB,tcfdbget,db,tc_Error_SetFDB);
 TC_XDB_rnum(TCFDB_rnum,TCFDB,tcfdbrnum);
@@ -439,14 +541,14 @@ static PyObject *tc_FDB_values(tc_FDB *self) {
 TC_XDB_length(tc_FDB_length,tc_FDB,TCFDB_rnum,db);
 // TC_XDB_subscript(tc_FDB_subscript,tc_FDB,tcfdbget,db,tc_Error_SetFDB);
 
-/*
-int tc_FDB_DelItem(tc_FDB *self, PyObject *args)
-{
+static int tc_FDB_DelItem(tc_FDB *self, PyObject *args) {
     PY_LONG_LONG key;
     bool result;
 
-    if (!PyArg_ParseTuple(args, "L:__getitem__", &key))
+    if (!PyArg_ParseTuple(args, "L:delitem", &key)) {
+        PyErr_SetString(PyExc_TypeError, "Argument key is of wrong type");
         return -1;
+    }
 
     Py_BEGIN_ALLOW_THREADS
     result = tcfdbout(self->db, key);
@@ -458,7 +560,7 @@ int tc_FDB_DelItem(tc_FDB *self, PyObject *args)
     }
     return 0;
 }
-*/
+
 /*
 #define TC_XDB_SetItem(func,type,call,member,err) \
   int \
@@ -484,7 +586,7 @@ int tc_FDB_DelItem(tc_FDB *self, PyObject *args)
 
 // TC_XDB_DelItem(tc_FDB_DelItem,tc_FDB,tcfdbout,db,tc_Error_SetFDB);
 // TC_XDB_SetItem(tc_FDB_SetItem,tc_FDB,tcfdbput,db,tc_Error_SetFDB);
-// TC_XDB_ass_sub(tc_FDB_ass_sub,tc_FDB,tc_FDB_SetItem,tc_FDB_DelItem);
+TC_XDB_ass_sub(tc_FDB_ass_sub,tc_FDB,(int)tc_FDB_put,tc_FDB_DelItem);
 // TC_XDB_addint(tc_FDB_addint,tc_FDB,addint,tcfdbaddint,db,tc_Error_SetFDB);
 // TC_XDB_adddouble(tc_FDB_adddouble,tc_FDB,addint,tcfdbadddouble,db,tc_Error_SetFDB);
 
@@ -573,10 +675,8 @@ static PySequenceMethods tc_FDB_as_sequence = {
 
 static PyMappingMethods tc_FDB_as_mapping = {
   (lenfunc)tc_FDB_length,                       /* mp_length */
-  NULL,
-  NULL,
-  // (binaryfunc)tc_FDB_subscript,                 /* mp_subscript */
-  // (objobjargproc)tc_FDB_ass_sub,                /* mp_ass_subscript */
+  (binaryfunc)tc_FDB___getitem__,               /* mp_subscript */
+  (objobjargproc)tc_FDB_ass_sub,                /* mp_ass_subscript */
 };
 
 PyTypeObject tc_FDBType = {
