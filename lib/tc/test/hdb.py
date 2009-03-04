@@ -26,7 +26,7 @@ class TestHDB(unittest.TestCase):
     # copy
     db.copy(DBNAME)
     # close
-    db.close
+    db.close()
     os.remove(DBNAME2)
 
     # open
