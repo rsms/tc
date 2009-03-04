@@ -13,6 +13,7 @@ static void tc_Error_SetFDB(TCFDB *db) {
     }
 }
 
+/* Used by tc_FDB_get and tc_FDB___getitem__ */
 static PyObject *tc_FDB_intern_get(tc_FDB *self, PY_LONG_LONG key) {
     PyObject *ret;
     char *value;
@@ -80,29 +81,6 @@ static PyObject * func(tc_FDB *self, PyObject *args, PyObject *keywds) { \
     } \
     Py_RETURN_NONE; \
 }
-
-
-#define TC_BOOL_LLKEYARGS(func,type,method,call,member,error,errmember) \
-  static PyObject * \
-  func(type *self, PyObject *args, PyObject *keywds) { \
-    PY_LONG_LONG key; \
-    bool result; \
-    static char *kwlist[] = {"key", NULL}; \
-  \
-    if (!PyArg_ParseTupleAndKeywords(args, keywds, "L:" #method, kwlist, \
-                                     &key)) { \
-      return NULL; \
-    } \
-    Py_BEGIN_ALLOW_THREADS \
-    result = call(self->member, key); \
-    Py_END_ALLOW_THREADS \
-  \
-    if (!result) { \
-      error(self->errmember); \
-      return NULL; \
-    } \
-    Py_RETURN_NONE; \
-  }
 
 #define TC_INT_LLKEYARGS(func,type,method,call,member,error) \
   static PyObject * \
@@ -274,7 +252,6 @@ TC_FDB_PUT(tc_FDB_putcat, putcat, tcfdbputcat);
  */
 static PyObject *tc_FDB_get(tc_FDB *self, PyObject *args) {
     PY_LONG_LONG key;
-
     if (!PyArg_ParseTuple(args, "L:get", &key)) {
         PyErr_SetString(PyExc_TypeError, "Argument key is of wrong type");
         return NULL;
@@ -288,12 +265,9 @@ static PyObject *tc_FDB_get(tc_FDB *self, PyObject *args) {
  * look at tcfdbget
  */
 static PyObject *tc_FDB___getitem__(tc_FDB *self, PyObject *_key) {
-    PY_LONG_LONG key;
-
-    key = PyLong_AsLongLong(_key);
+    PY_LONG_LONG key = PyLong_AsLongLong(_key);
 
     if (PyErr_ExceptionMatches(PyExc_TypeError)) {
-        PyErr_Clear();
         PyErr_SetString(PyExc_TypeError, "Argument key is of wrong type");
         return NULL;
     }
@@ -341,16 +315,74 @@ static int tc_FDB___setitem__(tc_FDB *self, PyObject *_key, PyObject *_value) {
     return 0;
 }
 
+/**
+ * tc.FDB.out(key)
+ * look at tcfdbout
+ */
+static PyObject *tc_FDB_out(tc_FDB *self, PyObject *args) {
+    bool result;
+    PY_LONG_LONG key;
+    if (!PyArg_ParseTuple(args, "L:get", &key)) {
+        PyErr_SetString(PyExc_TypeError, "Argument key is of wrong type");
+        return NULL;
+    }
+
+    Py_BEGIN_ALLOW_THREADS
+    result = tcfdbout(self->db, key);
+    Py_END_ALLOW_THREADS
+
+    if (!result) {
+        tc_Error_SetFDB(self->db);
+        return NULL;
+    }
+    return PyBool_FromLong(true);
+}
+
+/**
+ * tc.FDB.setmutex()
+ * look at tcfdbsetmutex
+ */
 TC_BOOL_NOARGS(tc_FDB_setmutex,tc_FDB,tcfdbsetmutex,db,tc_Error_SetFDB,db);
 
-TC_XDB_OPEN(tc_FDB_open,tc_FDB,tc_FDB_new,tcfdbopen,db,tc_FDB_dealloc,tc_Error_SetFDB);
+/**
+ * tc.FDB.close()
+ * look at tcfdbclose
+ */
 TC_BOOL_NOARGS(tc_FDB_close,tc_FDB,tcfdbclose,db,tc_Error_SetFDB,db);
 
-TC_BOOL_LLKEYARGS(tc_FDB_out,tc_FDB,out,tcfdbout,db,tc_Error_SetFDB,db);
-/* TC_STRINGL_LLKEYARGS(tc_FDB_get,tc_FDB,get,tcfdbget,db,tc_Error_SetFDB); */
-TC_INT_LLKEYARGS(tc_FDB_vsiz,tc_FDB,vsiz,tcfdbvsiz,db,tc_Error_SetFDB);
-
+/**
+ * tc.FDB.iterinit()
+ * look at tcfdbiterinit
+ */
 TC_BOOL_NOARGS(tc_FDB_iterinit,tc_FDB,tcfdbiterinit,db,tc_Error_SetFDB,db);
+
+/**
+ * tc.FDB.sync()
+ * look at tcfdbsync
+ */
+TC_BOOL_NOARGS(tc_FDB_sync,tc_FDB,tcfdbsync,db,tc_Error_SetFDB,db);
+
+/**
+ * tc.FDB.path()
+ * look at tcfdbpath
+ */
+TC_STRING_NOARGS(tc_FDB_path,tc_FDB,tcfdbpath,db,tc_Error_SetFDB);
+
+/**
+ * tc.FDB.vanish()
+ * look at tcfdbvanish
+ */
+TC_BOOL_NOARGS(tc_FDB_vanish,tc_FDB,tcfdbvanish,db,tc_Error_SetFDB,db);
+
+/**
+ * tc.FDB.copy(path)
+ * look at tcfdbcopy
+ */
+TC_BOOL_PATHARGS(tc_FDB_copy, tc_FDB, copy, tcfdbcopy, db, tc_Error_SetFDB);
+
+TC_XDB_OPEN(tc_FDB_open,tc_FDB,tc_FDB_new,tcfdbopen,db,tc_FDB_dealloc,tc_Error_SetFDB);
+
+TC_INT_LLKEYARGS(tc_FDB_vsiz,tc_FDB,vsiz,tcfdbvsiz,db,tc_Error_SetFDB);
 
 static PyObject *tc_FDB_GetIter(tc_FDB *self, tc_itertype_t itype) {
     if (tc_FDB_iterinit(self)) {
@@ -405,19 +437,15 @@ static PyObject *tc_FDB_iternext(tc_FDB *self) {
   return ret;
 }
 
-TC_BOOL_NOARGS(tc_FDB_sync,tc_FDB,tcfdbsync,db,tc_Error_SetFDB,db);
-TC_STRING_NOARGS(tc_FDB_path,tc_FDB,tcfdbpath,db,tc_Error_SetFDB);
 TC_U_LONG_LONG_NOARGS(tc_FDB_rnum, tc_FDB, tcfdbrnum, db, tcfdbecode, tc_Error_SetFDB);
 TC_U_LONG_LONG_NOARGS(tc_FDB_fsiz, tc_FDB, tcfdbrnum, db, tcfdbecode, tc_Error_SetFDB);
-TC_BOOL_NOARGS(tc_FDB_vanish,tc_FDB,tcfdbvanish,db,tc_Error_SetFDB,db);
-TC_BOOL_PATHARGS(tc_FDB_copy, tc_FDB, copy, tcfdbcopy, db, tc_Error_SetFDB);
 /* todo: features for experts */
 
-static int tc_FDB_Contains(tc_FDB *self, PyObject *args) {
+static int tc_FDB_contains(tc_FDB *self, PyObject *args) {
     PY_LONG_LONG key;
     int value_len;
 
-    if (!PyArg_ParseTuple(args, "L:__contains__", &key))
+    if (!PyArg_ParseTuple(args, "L:contains", &key))
         return 0;
 
     Py_BEGIN_ALLOW_THREADS
@@ -427,7 +455,6 @@ static int tc_FDB_Contains(tc_FDB *self, PyObject *args) {
     return (value_len != -1);
 }
 
-// TC_XDB_Contains(tc_FDB_Contains,tc_FDB,tcfdbvsiz,db);
 TC_XDB___contains__(tc_FDB___contains__,tc_FDB,tc_FDB_Contains);
 
 // TC_XDB___getitem__(tc_FDB___getitem__,tc_FDB,tcfdbget,db,tc_Error_SetFDB);
@@ -686,7 +713,7 @@ static PySequenceMethods tc_FDB_as_sequence = {
   0,                                            /* sq_slice */
   0,                                            /* sq_ass_item */
   0,                                            /* sq_ass_slice */
-  (objobjproc)tc_FDB_Contains,                  /* sq_contains */
+  (objobjproc)tc_FDB_contains,                  /* sq_contains */
   0,                                            /* sq_inplace_concat */
   0,                                            /* sq_inplace_repeat */
 };
