@@ -238,7 +238,25 @@ TC_FDB_PUT(tc_FDB_put, put, tcfdbput);
  * tc.FDB.putkeep(key, value)
  * look at tcfdbputkeep
  */
-TC_FDB_PUT(tc_FDB_putkeep, putkeep, tcfdbputkeep);
+static PyObject * tc_FDB_putkeep(tc_FDB *self, PyObject *args, PyObject *keywds) {
+    bool result;
+    PY_LONG_LONG key;
+    char *value;
+    int value_len;
+    static char *kwlist[] = {"key", "value", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, keywds, "Ls#:putkeep", kwlist,
+                                     &key, &value, &value_len)) {
+        PyErr_SetString(PyExc_TypeError, "Something is wrong with the arguments");
+        return NULL;
+    }
+
+    Py_BEGIN_ALLOW_THREADS
+    result = tcfdbputkeep(self->db, key, value, value_len);
+    Py_END_ALLOW_THREADS
+
+    return PyBool_FromLong(result);
+}
 
 /**
  * tc.FDB.putcat(key, value)
@@ -331,11 +349,7 @@ static PyObject *tc_FDB_out(tc_FDB *self, PyObject *args) {
     result = tcfdbout(self->db, key);
     Py_END_ALLOW_THREADS
 
-    if (!result) {
-        tc_Error_SetFDB(self->db);
-        return NULL;
-    }
-    return PyBool_FromLong(true);
+    return PyBool_FromLong(result);
 }
 
 /**
@@ -455,7 +469,7 @@ static int tc_FDB_contains(tc_FDB *self, PyObject *args) {
     return (value_len != -1);
 }
 
-TC_XDB___contains__(tc_FDB___contains__,tc_FDB,tc_FDB_Contains);
+TC_XDB___contains__(tc_FDB___contains__,tc_FDB,tc_FDB_contains);
 
 // TC_XDB___getitem__(tc_FDB___getitem__,tc_FDB,tcfdbget,db,tc_Error_SetFDB);
 TC_XDB_rnum(TCFDB_rnum,TCFDB,tcfdbrnum);
@@ -585,26 +599,6 @@ static PyObject *tc_FDB_values(tc_FDB *self) {
 
 TC_XDB_length(tc_FDB_length,tc_FDB,TCFDB_rnum,db);
 // TC_XDB_subscript(tc_FDB_subscript,tc_FDB,tcfdbget,db,tc_Error_SetFDB);
-
-static int tc_FDB_DelItem(tc_FDB *self, PyObject *args) {
-    PY_LONG_LONG key;
-    bool result;
-
-    if (!PyArg_ParseTuple(args, "L:delitem", &key)) {
-        PyErr_SetString(PyExc_TypeError, "Argument key is of wrong type");
-        return -1;
-    }
-
-    Py_BEGIN_ALLOW_THREADS
-    result = tcfdbout(self->db, key);
-    Py_END_ALLOW_THREADS
-
-    if (!result) {
-        tc_Error_SetFDB(self->db);
-        return -1;
-    }
-    return 0;
-}
 
 /*
 #define TC_XDB_SetItem(func,type,call,member,err) \
