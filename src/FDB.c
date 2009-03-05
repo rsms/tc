@@ -56,7 +56,7 @@ static PyObject * func(tc_FDB *self, PyObject *args, PyObject *keywds) { \
     Py_RETURN_NONE; \
 }
 
-/* Used for Put, Putkeep and Putcat */
+/* Used for Put and Putcat */
 #define TC_FDB_PUT(func, method, call) \
 static PyObject * func(tc_FDB *self, PyObject *args, PyObject *keywds) { \
     bool result; \
@@ -79,7 +79,7 @@ static PyObject * func(tc_FDB *self, PyObject *args, PyObject *keywds) { \
         tc_Error_SetFDB(self->db); \
         return NULL; \
     } \
-    Py_RETURN_NONE; \
+    return PyBool_FromLong(true); \
 }
 
 #define TC_INT_LLKEYARGS(func,type,method,call,member,error) \
@@ -255,6 +255,11 @@ static PyObject * tc_FDB_putkeep(tc_FDB *self, PyObject *args, PyObject *keywds)
     result = tcfdbputkeep(self->db, key, value, value_len);
     Py_END_ALLOW_THREADS
 
+    if (!result && tcfdbecode(self->db) != TCEKEEP) {
+        tc_Error_SetFDB(self->db);
+        return NULL;
+    }
+
     return PyBool_FromLong(result);
 }
 
@@ -394,11 +399,50 @@ TC_BOOL_NOARGS(tc_FDB_vanish,tc_FDB,tcfdbvanish,db,tc_Error_SetFDB,db);
  */
 TC_BOOL_PATHARGS(tc_FDB_copy, tc_FDB, copy, tcfdbcopy, db, tc_Error_SetFDB);
 
+TC_XDB_rnum(tc_FDB_intern_rnum, TCFDB, tcfdbrnum);
+
+/**
+ * len(tc.FDB)
+ * look at tcfdbrnum
+ */
+TC_XDB_length(tc_FDB_length, tc_FDB, tc_FDB_intern_rnum, db);
+
+/*
+ * tc.FDB.keys()
+ */
+static PyObject *tc_FDB_keys(tc_FDB *self) {
+    int i;
+    PyObject *ret;
+    if (!tc_FDB_iterinit(self) ||
+        !(ret = PyList_New(tc_FDB_intern_rnum(self->db)))) {
+        return NULL;
+    }
+
+    PY_LONG_LONG key;
+    PyObject *_key;
+    for (i = 0; ; i++) {
+        Py_BEGIN_ALLOW_THREADS
+        key = tcfdbiternext(self->db);
+        Py_END_ALLOW_THREADS
+
+        if (!key)
+            break;
+
+        _key = Py_BuildValue("L", key);
+        if (!_key) {
+            Py_DECREF(ret);
+            return NULL;
+        }
+        PyList_SET_ITEM(ret, i, _key);
+    }
+    return ret;
+}
+
 TC_XDB_OPEN(tc_FDB_open,tc_FDB,tc_FDB_new,tcfdbopen,db,tc_FDB_dealloc,tc_Error_SetFDB);
 
 TC_INT_LLKEYARGS(tc_FDB_vsiz,tc_FDB,vsiz,tcfdbvsiz,db,tc_Error_SetFDB);
 
-static PyObject *tc_FDB_GetIter(tc_FDB *self, tc_itertype_t itype) {
+static PyObject *tc_FDB_getIter(tc_FDB *self, tc_itertype_t itype) {
     if (tc_FDB_iterinit(self)) {
         Py_INCREF(self);
         /* hack */
@@ -415,11 +459,10 @@ static PyObject *tc_FDB_GetIter(tc_FDB *self, tc_itertype_t itype) {
     return NULL;
 }
 
-TC_XDB_iters(tc_FDB,tc_FDB_GetIter_keys,tc_FDB_GetIter_values,tc_FDB_GetIter_items,tc_FDB_GetIter);
+TC_XDB_iters(tc_FDB, tc_FDB_getIter_keys, tc_FDB_getIter_values, tc_FDB_getIter_items, tc_FDB_getIter);
 
 static PyObject *tc_FDB_iternext(tc_FDB *self) {
-  log_trace("ENTER");
-  PyObject *ret = NULL; \
+  PyObject *ret = NULL;
   if (self->itype == tc_iter_key_t) {
     PY_LONG_LONG key;
 
@@ -472,41 +515,11 @@ static int tc_FDB_contains(tc_FDB *self, PyObject *args) {
 TC_XDB___contains__(tc_FDB___contains__,tc_FDB,tc_FDB_contains);
 
 // TC_XDB___getitem__(tc_FDB___getitem__,tc_FDB,tcfdbget,db,tc_Error_SetFDB);
-TC_XDB_rnum(TCFDB_rnum,TCFDB,tcfdbrnum);
-
-static PyObject *tc_FDB_keys(tc_FDB *self) {
-    log_trace("ENTER");
-    int i;
-    PyObject *ret;
-    if (!tc_FDB_iterinit((tc_FDB *)self) ||
-        !(ret = PyList_New(TCFDB_rnum(self->db)))) {
-        return NULL;
-    }
-    for (i = 0; ; i++) {
-        PY_LONG_LONG key;
-        PyObject *_key;
-
-        Py_BEGIN_ALLOW_THREADS
-        key = tcfdbiternext(self->db);
-        Py_END_ALLOW_THREADS
-
-        if (!key)
-            break;
-
-        _key = Py_BuildValue("L", key);
-        if (!_key) {
-            Py_DECREF(ret);
-            return NULL;
-        }
-        PyList_SET_ITEM(ret, i, _key);
-    }
-    return ret;
-}
 
 /*
 static PyObject *tc_FDB_items(tc_FDB *self) {
   log_trace("ENTER");
-  int i, n = TCFDB_rnum(self->db);
+  int i, n = tc_FDB_intern_rnum(self->db);
   PyObject *ret, *item;
   if (!tc_FDB_iterinit((tc_FDB *)self) ||
       !(ret = PyList_New(n))) {
@@ -564,7 +577,7 @@ static PyObject *tc_FDB_values(tc_FDB *self) {
   int i;
   PyObject *ret;
   if (!tc_FDB_iterinit((tc_FDB *)self) ||
-      !(ret = PyList_New(TCFDB_rnum(self->db)))) {
+      !(ret = PyList_New(tc_FDB_intern_rnum(self->db)))) {
     return NULL;
   }
   for (i = 0; ; i++) {
@@ -597,7 +610,6 @@ static PyObject *tc_FDB_values(tc_FDB *self) {
 }
 */
 
-TC_XDB_length(tc_FDB_length,tc_FDB,TCFDB_rnum,db);
 // TC_XDB_subscript(tc_FDB_subscript,tc_FDB,tcfdbget,db,tc_Error_SetFDB);
 
 /*
@@ -685,11 +697,11 @@ static PyMethodDef tc_FDB_methods[] = {
   //  NULL},
   // {"values", (PyCFunction)tc_FDB_values, METH_NOARGS,
   //  NULL},
-  {"iteritems", (PyCFunction)tc_FDB_GetIter_items, METH_NOARGS,
+  {"iteritems", (PyCFunction)tc_FDB_getIter_items, METH_NOARGS,
     NULL},
-  {"iterkeys", (PyCFunction)tc_FDB_GetIter_keys, METH_NOARGS,
+  {"iterkeys", (PyCFunction)tc_FDB_getIter_keys, METH_NOARGS,
     NULL},
-  {"itervalues", (PyCFunction)tc_FDB_GetIter_values, METH_NOARGS,
+  {"itervalues", (PyCFunction)tc_FDB_getIter_values, METH_NOARGS,
     NULL},
   // {"addint", (PyCFunction)tc_FDB_addint, METH_VARARGS | METH_KEYWORDS,
   //  "Add an integer to a record in a fixed-length database object."},
@@ -749,7 +761,7 @@ PyTypeObject tc_FDBType = {
   0,                                            /* tp_clear */
   0,                                            /* tp_richcompare */
   0,                                            /* tp_weaklistoffset */
-  (getiterfunc)tc_FDB_GetIter_keys,             /* tp_iter */
+  (getiterfunc)tc_FDB_getIter_keys,             /* tp_iter */
   (iternextfunc)tc_FDB_iternext,                /* tp_iternext */
   tc_FDB_methods,                               /* tp_methods */
   0,                                            /* tp_members */

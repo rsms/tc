@@ -15,7 +15,6 @@ class TestFDB(unittest.TestCase):
             os.remove(DBNAME)
 
         self.db = tc.FDB(DBNAME, tc.FDBOWRITER | tc.FDBOCREAT | tc.FDBOTRUNC)
-        self.db[1] = 'a'
   
     def tearDown(self):
         self.db.close()
@@ -24,6 +23,8 @@ class TestFDB(unittest.TestCase):
             os.remove(DBNAME)
 
     def testPut(self):
+        self.db[1] = 'a'
+
         try:
             self.db["string"] = 'a'
         except TypeError:
@@ -37,25 +38,26 @@ class TestFDB(unittest.TestCase):
         self.db[2] = 'e'
         self.assertEqual(self.db[2], 'e')
 
-        self.db.put(2, 'c')
+        self.assertEqual(self.db.put(2, 'c'), True)
         self.assertEqual(self.db[2], 'c')
 
-        self.db.put(2, 'f')
+        self.assertEqual(self.db.put(2, 'f'), True)
         self.assertEqual(self.db[2], 'f')
 
-        self.db.putkeep(2, 'd')
+        self.assertEqual(self.db.putkeep(2, 'd'), False)
         self.assertEqual(self.db[2], 'f')
 
-        self.db.putkeep(3, 'd')
+        self.assertEqual(self.db.putkeep(3, 'd'), True)
         self.assertEqual(self.db[3], 'd')
 
-        self.db.putcat(4, 'g')
+        self.assertEqual(self.db.putcat(4, 'g'), True)
         self.assertEqual(self.db[4], 'g')
 
-        self.db.putcat(3, 'h')
+        self.assertEqual(self.db.putcat(3, 'h'), True)
         self.assertEqual(self.db[3], 'dh')
 
     def testRead(self):
+        self.db[1] = 'a'
         self.db.close()
 
         self.db = tc.FDB(DBNAME, tc.FDBOREADER)
@@ -83,6 +85,7 @@ class TestFDB(unittest.TestCase):
             self.fail("Shouldn't be able to write to database")
 
     def testGet(self):
+        self.db[1] = 'a'
         self.assertEqual(self.db[1], 'a')
         try:
             self.db[2]
@@ -128,6 +131,15 @@ class TestFDB(unittest.TestCase):
         self.assertEqual(len(self.db), 2)
         self.db.out(1)
         self.assertEqual(len(self.db), 1)
+
+    def testKeys(self):
+        self.db[1] = 'a'
+        self.db[2] = 'b'
+        self.db[17] = 'c'
+        self.assertEqual(self.db.keys(), [1, 2, 17])
+        del self.db[2]
+        self.db[172121] = 'v'
+        self.assertEqual(self.db.keys(), [1, 17, 172121])
 
 
 def suite():
