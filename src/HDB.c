@@ -79,6 +79,13 @@ static void tc_HDB_dealloc(tc_HDB *self) {
   PyObject_Del(self);
 }
 
+/*
+ * in-memory only databases:
+ * We need to keep track of wherethere a database was created with a file 
+ * backend or not. If no file is specified, we need to use tcmdbnew2() and co.
+ * from tcutil.c instead of tchdbnew() and co..
+ */
+
 static PyObject *tc_HDB_new(PyTypeObject *type, PyObject *args, PyObject *keywds) {
   log_trace("ENTER");
   tc_HDB *self;
