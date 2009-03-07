@@ -5,9 +5,10 @@
 #include <tchdb.h>
 #include <tctdb.h>
 
-#include "HDB.h"
 #include "BDB.h"
 #include "BDBCursor.h"
+#include "FDB.h"
+#include "HDB.h"
 
 PyObject *tc_module;
 PyObject *tc_Error;
@@ -69,9 +70,11 @@ PyMODINIT_FUNC  PyInit__tc(void)
       log_error("sub-component initializer '" #name "' failed"); \
       goto exit; \
     }
-  R(tc_HDB_register, != 0)
+
   R(tc_BDB_register, != 0)
   R(tc_BDBCursor_register, != 0)
+  R(tcfdb_register, != 0)
+  R(tc_HDB_register, != 0)
   #undef R
 
   /* Register consts */
@@ -140,7 +143,18 @@ PyMODINIT_FUNC  PyInit__tc(void)
   ADD_INT(tc_module, BDBCPCURRENT);
   ADD_INT(tc_module, BDBCPBEFORE);
   ADD_INT(tc_module, BDBCPAFTER);
-  
+
+  /* FDB */
+  ADD_INT(tc_module, FDBFOPEN);
+  ADD_INT(tc_module, FDBFFATAL);
+
+  ADD_INT(tc_module, FDBOREADER);
+  ADD_INT(tc_module, FDBOWRITER);
+  ADD_INT(tc_module, FDBOCREAT);
+  ADD_INT(tc_module, FDBOTRUNC);
+  ADD_INT(tc_module, FDBONOLCK);
+  ADD_INT(tc_module, FDBOLCKNB);
+
   #undef ADD_INT
   /* end adding constants */
 

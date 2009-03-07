@@ -16,14 +16,15 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 __version__ = '?'
 exec(open(os.path.join("lib", "tc", "release.py")).read())
 system_config_h = os.path.join("src", "system_config.h")
-libraries = [ ['tokyocabinet', ['tchdb.h']] ]
+libraries = [ ['tokyocabinet', ['tchdb.h', 'tcfdb.h', 'tcbdb.h']] ]
 X86_MACHINES = ['i386', 'i686', 'i86pc', 'amd64', 'x86_64']
 sources = [
   'src/__init__.c',
   'src/util.c',
-  'src/HDB.c',
   'src/BDB.c',
-  'src/BDBCursor.c'
+  'src/BDBCursor.c',
+  'src/FDB.c',
+  'src/HDB.c',
 ]
 
 # -----------------------------------------------------------------------------
