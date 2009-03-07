@@ -1,9 +1,9 @@
 #include "FDB.h"
 #include "__init__.h" /* for tc_Error */
 
-/* typedef TcFdbObject tcfdbobject; */
-
-void tc_fdb_seterr(TcFdbObject *self) {
+void
+tc_fdb_seterr(TcFdbObject *self)
+{
     int ecode = tcfdbecode(self->db);
 
     PyObject *obj;
@@ -31,7 +31,10 @@ tc_fdb_init(PyObject *pyself, PyObject *args, PyObject *kwds)
             result = tcfdbopen(self->db, path, omode);
             Py_END_ALLOW_THREADS
 
-            return result;
+            if (!result) {
+                tc_fdb_seterr(self);
+                return -1;
+            }
         }
 
         return 0;
@@ -41,18 +44,16 @@ tc_fdb_init(PyObject *pyself, PyObject *args, PyObject *kwds)
     }
 }
 
-
 static void
 tc_fdb_dealloc(TcFdbObject *self)
 {
     Py_BEGIN_ALLOW_THREADS
-    if (self) {
+    if (self->db) {
         tcfdbdel(self->db);
         self->db = NULL;
     }
     Py_END_ALLOW_THREADS
 }
-
 
 static long
 tc_fdb_nohash(PyObject *pyself)
@@ -62,13 +63,11 @@ tc_fdb_nohash(PyObject *pyself)
 }
 
 static int
-tc_fdb_out_impl(TcFdbObject* self, PyObject* pykey)
+tc_fdb_out_impl(TcFdbObject* self, PyObject *pykey)
 {
     PY_LONG_LONG key = PyLong_AsLongLong(pykey);
-    if (PyErr_ExceptionMatches(PyExc_TypeError)) {
-        PyErr_SetString(PyExc_TypeError, "Argument key is of wrong type");
+    if (PyErr_ExceptionMatches(PyExc_TypeError))
         return -1;
-    }
 
     bool retval = false;
 
@@ -79,18 +78,18 @@ tc_fdb_out_impl(TcFdbObject* self, PyObject* pykey)
     return (retval ? 0 : 1);
 }
 
-static PyObject*
-tc_fdb_out(PyObject* pyself, PyObject* pykey)
+static PyObject *
+tc_fdb_out(PyObject *pyself, PyObject *pykey)
 {
-    int retval = tc_fdb_out_impl((TcFdbObject*)pyself, pykey);
+    int retval = tc_fdb_out_impl((TcFdbObject *)pyself, pykey);
     if (retval < 0)
         return NULL;
 
     return PyBool_FromLong(!retval);
 }
 
-static PyObject*
-tc_fdb_get_impl(TcFdbObject* self, PY_LONG_LONG key)
+static PyObject *
+tc_fdb_get_impl(TcFdbObject *self, PY_LONG_LONG key)
 {
     PyObject *retval = NULL;
     char *value = NULL;
@@ -108,57 +107,53 @@ tc_fdb_get_impl(TcFdbObject* self, PY_LONG_LONG key)
     return retval;
 }
 
-static PyObject*
-tc_fdb_get_arg_impl(TcFdbObject* self, PyObject* pykey)
+static PyObject *
+tc_fdb_get_arg_impl(TcFdbObject *self, PyObject *pykey)
 {
     PY_LONG_LONG key = PyLong_AsLongLong(pykey);
-    if (PyErr_ExceptionMatches(PyExc_TypeError)) {
+    if (PyErr_Occurred() != NULL && PyErr_ExceptionMatches(PyExc_TypeError))
         return NULL;
-    }
 
     return tc_fdb_get_impl(self, key);
 }
 
-static PyObject*
-tc_fdb_get(PyObject* pyself, PyObject* pykey)
+static PyObject *
+tc_fdb_get(PyObject *pyself, PyObject *pykey)
 {
-    TcFdbObject* self = (TcFdbObject*)pyself;
+    TcFdbObject* self = (TcFdbObject *)pyself;
     assert(self->db);
 
-    PyObject* retval = tc_fdb_get_arg_impl(self, pykey);
+    PyObject *retval = tc_fdb_get_arg_impl(self, pykey);
 
-    if (!retval)
+    if (retval == NULL) {
+        if (PyErr_Occurred() != NULL)
+            return NULL;
+
         Py_RETURN_NONE;
+    }
 
     return retval;
 }
 
-static PyObject*
+static PyObject *
 tc_fdb___getitem__impl(TcFdbObject *self, PyObject *pykey)
 {
-    PyObject* retval = tc_fdb_get_arg_impl(self, pykey);
+    PyObject *retval = tc_fdb_get_arg_impl(self, pykey);
 
-    if (!retval && !PyErr_Occurred())
+    if (retval == NULL && PyErr_Occurred() == NULL)
         PyErr_SetObject(PyExc_KeyError, pykey);
 
     return retval;
 }
 
-static PyObject*
+static PyObject *
 tc_fdb___getitem__(PyObject *pyself, PyObject *pykey)
 {
-    return tc_fdb___getitem__impl((TcFdbObject*)pyself, pykey);
+    return tc_fdb___getitem__impl((TcFdbObject *)pyself, pykey);
 }
 
-enum StoreType
-{
-    PUT,
-    PUTKEEP,
-    PUTCAT
-};
-
 static int
-tc_fdb_put_impl(TcFdbObject* self, PyObject* pykey, PyObject* pyvalue, enum StoreType type)
+tc_fdb_put_impl(TcFdbObject* self, PyObject *pykey, PyObject *pyvalue, enum PutType type)
 {
     PY_LONG_LONG key = PyLong_AsLongLong(pykey);
     if (PyErr_ExceptionMatches(PyExc_TypeError))
@@ -172,15 +167,15 @@ tc_fdb_put_impl(TcFdbObject* self, PyObject* pykey, PyObject* pyvalue, enum Stor
 
     Py_BEGIN_ALLOW_THREADS
     switch(type) {
-        case PUT:
+        case PUT_TYPE_DEFAULT:
             ret = tcfdbput(self->db, key, value, value_len);
             retval = (ret ? 0 : -1);
             break;
-        case PUTKEEP:
+        case PUT_TYPE_KEEP:
             ret = tcfdbputkeep(self->db, key, value, value_len);
-            retval = (!ret && tcfdbecode(self->db) != TCEKEEP) ? 1 : (ret ? 0 : -1);
+            retval = (!ret && tcfdbecode(self->db) == TCEKEEP) ? 1 : (ret ? 0 : -1);
             break;
-        case PUTCAT:
+        case PUT_TYPE_CAT:
             ret = tcfdbputcat(self->db, key, value, value_len);
             retval = (ret ? 0 : -1);
             break;
@@ -194,20 +189,20 @@ tc_fdb_put_impl(TcFdbObject* self, PyObject* pykey, PyObject* pyvalue, enum Stor
 }
 
 static int
-tc_fdb_put_args_impl(TcFdbObject* self, PyObject* args, enum StoreType type)
+tc_fdb_put_args_impl(TcFdbObject *self, PyObject *args, enum PutType type)
 {
-    PyObject* key;
-    PyObject* value;
+    PyObject *key;
+    PyObject *value;
     if (!PyArg_ParseTuple(args, "OO:put", &key, &value))
         return -1;
 
     return tc_fdb_put_impl(self, key, value, type);
 }
 
-static PyObject*
-tc_fdb_put(PyObject* pyself, PyObject* args)
+static PyObject *
+tc_fdb_put(PyObject *pyself, PyObject *args)
 {
-    int retval = tc_fdb_put_args_impl((TcFdbObject*)pyself, args, PUT);
+    int retval = tc_fdb_put_args_impl((TcFdbObject *)pyself, args, PUT_TYPE_DEFAULT);
 
     if (retval < 0)
         return NULL;
@@ -215,10 +210,10 @@ tc_fdb_put(PyObject* pyself, PyObject* args)
     return PyBool_FromLong(1);
 }
 
-static PyObject*
-tc_fdb_putkeep(PyObject* pyself, PyObject* args)
+static PyObject *
+tc_fdb_putkeep(PyObject *pyself, PyObject *args)
 {
-    int retval = tc_fdb_put_args_impl((TcFdbObject*)pyself, args, PUTKEEP);
+    int retval = tc_fdb_put_args_impl((TcFdbObject *)pyself, args, PUT_TYPE_KEEP);
 
     if (retval < 0)
         return NULL;
@@ -226,10 +221,10 @@ tc_fdb_putkeep(PyObject* pyself, PyObject* args)
     return PyBool_FromLong(!retval);
 }
 
-static PyObject*
-tc_fdb_putcat(PyObject* pyself, PyObject* args)
+static PyObject *
+tc_fdb_putcat(PyObject *pyself, PyObject *args)
 {
-    int retval = tc_fdb_put_args_impl((TcFdbObject*)pyself, args, PUTCAT);
+    int retval = tc_fdb_put_args_impl((TcFdbObject *)pyself, args, PUT_TYPE_CAT);
 
     if (retval < 0)
         return NULL;
@@ -240,16 +235,14 @@ tc_fdb_putcat(PyObject* pyself, PyObject* args)
 static int
 tc_fdb_ass_subscript(TcFdbObject *self, PyObject *key, PyObject *value)
 {
-    
     if (value == NULL) {
         int retval = tc_fdb_out_impl(self, key);
-
-        if (retval != 0)
+        if (retval != 0 && !PyErr_Occurred())
             PyErr_SetObject(PyExc_KeyError, key);
 
         return retval;
     } else {
-        return tc_fdb_put_impl(self, key, value, PUT);
+        return tc_fdb_put_impl(self, key, value, PUT_TYPE_DEFAULT);
     }
 }
 
@@ -268,7 +261,7 @@ tc_fdb_length(TcFdbObject *self)
 static int
 tc_fdb___contains___impl(PyObject *pyself, PyObject *_key)
 {
-    TcFdbObject* self = (TcFdbObject*)pyself;
+    TcFdbObject *self = (TcFdbObject *)pyself;
     assert(self->db);
 
     PY_LONG_LONG key = PyLong_AsLongLong(_key);
@@ -281,7 +274,7 @@ tc_fdb___contains___impl(PyObject *pyself, PyObject *_key)
     value_len = tcfdbvsiz(self->db, key);
     Py_END_ALLOW_THREADS
 
-    return (value_len != -1);
+    return ((value_len == -1) ? 0 : 1);
 }
 
 static PyObject *
@@ -292,34 +285,11 @@ tc_fdb___contains__(PyObject *pyself, PyObject *key)
     if (retval == -1)
         return NULL;
 
-    return PyBool_FromLong(retval != 0);
-}
-
-extern PyTypeObject PyTcFdbIter_Type;
-static PyObject *tc_fdb_iter_new(TcFdbObject *, enum IterType);
-static PyObject *tc_fdb_iter_next(TcFdbIterObject *);
-static Py_ssize_t tc_fdb_iter_len_impl(TcFdbIterObject *);
-
-static PyObject *
-tc_fdb_iterkeys(PyObject *pyself)
-{
-        return tc_fdb_iter_new((TcFdbObject*)pyself, KEY);
+    return PyBool_FromLong(retval == 0);
 }
 
 static PyObject *
-tc_fdb_itervalues(PyObject *pyself)
-{
-        return tc_fdb_iter_new((TcFdbObject*)pyself, VALUE);
-}
-
-static PyObject *
-tc_fdb_iteritems(PyObject *pyself)
-{
-        return tc_fdb_iter_new((TcFdbObject*)pyself, ITEM);
-}
-
-static PyObject *
-tc_fdb_list(TcFdbObject* self, enum IterType itertype)
+tc_fdb_list(TcFdbObject *self, enum IterType itertype)
 {
     TcFdbIterObject *it = (TcFdbIterObject *)tc_fdb_iter_new(self, itertype);
     PyObject *retval = PyList_New(tc_fdb_iter_len_impl(it));
@@ -339,13 +309,13 @@ tc_fdb_list(TcFdbObject* self, enum IterType itertype)
 static PyObject *
 tc_fdb_keys(PyObject *pyself)
 {
-    return tc_fdb_list((TcFdbObject*)pyself, KEY);
+    return tc_fdb_list((TcFdbObject *)pyself, FDB_ITER_TYPE_KEY);
 }
 
 static PyObject *
 tc_fdb_values(PyObject *pyself)
 {
-    return tc_fdb_list((TcFdbObject*)pyself, VALUE);
+    return tc_fdb_list((TcFdbObject *)pyself, FDB_ITER_TYPE_VALUE);
 }
 
 PyDoc_STRVAR(has_key__doc__,
@@ -426,13 +396,13 @@ static PyMethodDef tc_fdb_methods[] = {
         "values",       (PyCFunction)tc_fdb_values,         METH_NOARGS,                    values__doc__
     },
     {
-        "iterkeys",     (PyCFunction)tc_fdb_iterkeys,       METH_NOARGS,                    iterkeys__doc__
+        "iterkeys",     (PyCFunction)tc_fdb_iter_keys,      METH_NOARGS,                    iterkeys__doc__
     },
     {
-        "itervalues",   (PyCFunction)tc_fdb_itervalues,     METH_NOARGS,                    itervalues__doc__
+        "itervalues",   (PyCFunction)tc_fdb_iter_values,    METH_NOARGS,                    itervalues__doc__
     },
     {
-        "iteritems",    (PyCFunction)tc_fdb_iteritems,      METH_NOARGS,                    iteritems__doc__
+        "iteritems",    (PyCFunction)tc_fdb_iter_items,     METH_NOARGS,                    iteritems__doc__
     },
     /* Sentinel */
     {
@@ -518,6 +488,24 @@ int tc_fdb_register(PyObject *module)
 /* Tokyo Cabinet fixed-width database iterator types */
 
 static PyObject *
+tc_fdb_iter_keys(PyObject *pyself)
+{
+        return tc_fdb_iter_new((TcFdbObject *)pyself, FDB_ITER_TYPE_KEY);
+}
+
+static PyObject *
+tc_fdb_iter_values(PyObject *pyself)
+{
+        return tc_fdb_iter_new((TcFdbObject *)pyself, FDB_ITER_TYPE_VALUE);
+}
+
+static PyObject *
+tc_fdb_iter_items(PyObject *pyself)
+{
+        return tc_fdb_iter_new((TcFdbObject *)pyself, FDB_ITER_TYPE_ITEM);
+}
+
+static PyObject *
 tc_fdb_iter_new(TcFdbObject *tc_fdb, enum IterType type)
 {
     TcFdbIterObject *it;
@@ -574,23 +562,23 @@ tc_fdb_iter_next(TcFdbIterObject *it)
         PyObject *pykey = NULL;
         PyObject *pyvalue = NULL;
 
-        if (it->type == KEY || it->type == ITEM) {
+        if (it->type == FDB_ITER_TYPE_KEY || it->type == FDB_ITER_TYPE_ITEM) {
             pykey = PyLong_FromLongLong(key);
         }
-        if (it->type == VALUE || it->type == ITEM) {
+        if (it->type == FDB_ITER_TYPE_VALUE || it->type == FDB_ITER_TYPE_ITEM) {
             pyvalue = tc_fdb_get_impl(it->tc_fdb, key);
         }
 
         switch (it->type) {
-            case KEY:
+            case FDB_ITER_TYPE_KEY:
                 if (pykey != NULL)
                     return pykey;
                 break;
-            case VALUE:
+            case FDB_ITER_TYPE_VALUE:
                 if (pyvalue != NULL)
                     return pyvalue;
                 break;
-            case ITEM:
+            case FDB_ITER_TYPE_ITEM:
                 if (pykey != NULL && pyvalue != NULL) {
                     PyObject *t;
                     t = PyTuple_Pack(2, pykey, pyvalue);
