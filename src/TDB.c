@@ -1,4 +1,5 @@
 #include "TDB.h"
+#include "TDBQuery.h"
 #include "util.h"
 
 /* Private --------------------------------------------------------------- */
@@ -79,7 +80,7 @@ static PyObject *tc_TDB_new(PyTypeObject *type, PyObject *args, PyObject *keywds
 }
 
 
-static long tc_TDB_Hash(PyObject *self) {
+static long tc_TDB_hash(PyObject *self) {
   log_trace("ENTER");
   PyErr_SetString(PyExc_TypeError, "TDB objects are unhashable");
   return -1L;
@@ -265,6 +266,12 @@ static PyObject *tc_TDB_delete(tc_TDB *self, PyObject *args, PyObject *keywds) {
 }
 
 
+static PyObject *tc_TDB_query(tc_TDB *self) {
+  log_trace("ENTER");
+  return (PyObject *)tc_TDBQuery_new_capi(self->db);
+}
+
+
 /* Type ------------------------------------------------------------------ */
 
 
@@ -278,6 +285,8 @@ static PyMethodDef tc_TDB_methods[] = {
     "Remove a record."},
   {"out", (PyCFunction)tc_TDB_delete, METH_VARARGS | METH_KEYWORDS,
     "Alias of delete()."},
+  {"query", (PyCFunction)tc_TDB_query, METH_NOARGS,
+    "Query the table."},
   {NULL, NULL, 0, NULL}
 };
 
@@ -301,7 +310,7 @@ PyTypeObject tc_TDBType = {
   0,                                           /* tp_as_number */
   0,                                          /* tp_as_sequence */
   0,                                            /* tp_as_mapping */
-  tc_TDB_Hash,                                 /* tp_hash  */
+  tc_TDB_hash,                                 /* tp_hash  */
   0,                                           /* tp_call */
   0,                                           /* tp_str */
   0,                                           /* tp_getattro */

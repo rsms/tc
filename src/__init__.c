@@ -9,6 +9,7 @@
 #include "BDB.h"
 #include "BDBCursor.h"
 #include "TDB.h"
+#include "TDBQuery.h"
 
 PyObject *tc_module;
 PyObject *tc_Error;
@@ -74,6 +75,7 @@ PyMODINIT_FUNC  PyInit__tc(void)
   R(tc_BDB_register, != 0)
   R(tc_BDBCursor_register, != 0)
   R(tc_TDB_register, != 0)
+  R(tc_TDBQuery_register, != 0)
   #undef R
 
   /* Register consts */

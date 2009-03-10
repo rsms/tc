@@ -34,6 +34,78 @@ class TestTDB(unittest.TestCase):
     db.delete('bulgur')
     
     self.assertRaises(KeyError, db.get, 'bulgur')
+    
+    #
+    # order:
+    #
+    
+    db.put('torgny',  {'name': 'Torgny Korv', 'age': '31', 'colors': 'red,blue,green'})
+    db.put('rosa',    {'name': 'Rosa Flying', 'age': '29', 'colors': 'pink,blue,green'})
+    db.put('jdoe',    {'name': 'John Doe',    'age': '45', 'colors': 'red,green,orange'})
+    
+    q = db.query()
+    # No filters
+    self.assertTrue('torgny' in q.keys())
+    self.assertTrue('rosa' in q.keys())
+    self.assertTrue('jdoe' in q.keys())
+    q.filter('age', tc.TDBQCNUMGE, '30')
+    # Rosa is too young
+    self.assertTrue('torgny' in q.keys())
+    self.assertTrue('rosa' not in q.keys())
+    self.assertTrue('jdoe' in q.keys())
+    q.filter('colors', tc.TDBQCSTROR, 'blue')
+    # John Doe don't like blue
+    self.assertTrue('torgny' in q.keys())
+    self.assertTrue('rosa' not in q.keys())
+    self.assertTrue('jdoe' not in q.keys())
+    
+    q = db.query()
+    # Fresh query
+    self.assertTrue('torgny' in q.keys())
+    self.assertTrue('rosa' in q.keys())
+    self.assertTrue('jdoe' in q.keys())
+    # order asc by name
+    q.order('name') # tc.TDBQOSTRASC is the default type
+    pks = q.keys()
+    self.assertEquals(pks[0], 'jdoe')
+    self.assertEquals(pks[1], 'rosa')
+    self.assertEquals(pks[2], 'torgny')
+    # order desc by name
+    q.order('name', tc.TDBQOSTRDESC)
+    pks = q.keys()
+    self.assertEquals(pks[0], 'torgny')
+    self.assertEquals(pks[1], 'rosa')
+    self.assertEquals(pks[2], 'jdoe')
+    # order asc by age
+    q.order(type=tc.TDBQONUMASC, column='age')
+    pks = q.keys()
+    self.assertEquals(pks[0], 'rosa')
+    self.assertEquals(pks[1], 'torgny')
+    self.assertEquals(pks[2], 'jdoe')
+    # order desc by age
+    q.order('age', tc.TDBQONUMDESC)
+    pks = q.keys()
+    self.assertEquals(pks[0], 'jdoe')
+    self.assertEquals(pks[1], 'torgny')
+    self.assertEquals(pks[2], 'rosa')
+    # order asc by primary key (by None/NULL -> empty string)
+    q.order(None)
+    pks = q.keys()
+    self.assertEquals(pks[0], 'jdoe')
+    self.assertEquals(pks[1], 'rosa')
+    self.assertEquals(pks[2], 'torgny')
+    # order asc by primary key (by empty string)
+    q.order('')
+    pks = q.keys()
+    self.assertEquals(pks[0], 'jdoe')
+    self.assertEquals(pks[1], 'rosa')
+    self.assertEquals(pks[2], 'torgny')
+    # order desc by primary key
+    q.order('', tc.TDBQOSTRDESC)
+    pks = q.keys()
+    self.assertEquals(pks[0], 'torgny')
+    self.assertEquals(pks[1], 'rosa')
+    self.assertEquals(pks[2], 'jdoe')
   
 
 def suite():

@@ -24,7 +24,8 @@ sources = [
   'src/HDB.c',
   'src/BDB.c',
   'src/BDBCursor.c',
-  'src/TDB.c'
+  'src/TDB.c',
+  'src/TDBQuery.c'
 ]
 
 # -----------------------------------------------------------------------------
