@@ -23,7 +23,8 @@ sources = [
   'src/util.c',
   'src/HDB.c',
   'src/BDB.c',
-  'src/BDBCursor.c'
+  'src/BDBCursor.c',
+  'src/TDB.c'
 ]
 
 # -----------------------------------------------------------------------------

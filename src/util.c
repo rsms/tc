@@ -21,3 +21,4 @@ void tc_Error_SetCodeAndString(int ecode, const char *errmsg) {
   PyErr_SetObject(tc_Error, obj);
   Py_DECREF(obj);
 }
+
