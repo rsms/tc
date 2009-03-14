@@ -8,6 +8,8 @@
 #include "HDB.h"
 #include "BDB.h"
 #include "BDBCursor.h"
+#include "TDB.h"
+#include "TDBQuery.h"
 
 PyObject *tc_module;
 PyObject *tc_Error;
@@ -72,6 +74,8 @@ PyMODINIT_FUNC  PyInit__tc(void)
   R(tc_HDB_register, != 0)
   R(tc_BDB_register, != 0)
   R(tc_BDBCursor_register, != 0)
+  R(tc_TDB_register, != 0)
+  R(tc_TDBQuery_register, != 0)
   #undef R
 
   /* Register consts */
@@ -140,6 +144,64 @@ PyMODINIT_FUNC  PyInit__tc(void)
   ADD_INT(tc_module, BDBCPCURRENT);
   ADD_INT(tc_module, BDBCPBEFORE);
   ADD_INT(tc_module, BDBCPAFTER);
+  /* end of BDB */
+  
+  /* TDB: additional flags */
+  ADD_INT(tc_module, TDBFOPEN);     /* whether opened */
+  ADD_INT(tc_module, TDBFFATAL);    /* whetehr with fatal error */
+  
+  /* TDB: tuning options */
+  ADD_INT(tc_module, TDBTLARGE);    /* use 64-bit bucket array */
+  ADD_INT(tc_module, TDBTDEFLATE);  /* compress each page with Deflate */
+  ADD_INT(tc_module, TDBTBZIP);     /* compress each record with BZIP2 */
+  ADD_INT(tc_module, TDBTTCBS);     /* compress each page with TCBS */
+  ADD_INT(tc_module, TDBTEXCODEC);  /* compress each record with outer functions */
+  
+  /* TDB: open modes */
+  ADD_INT(tc_module, TDBOREADER);   /* open as a reader */
+  ADD_INT(tc_module, TDBOWRITER);   /* open as a writer */
+  ADD_INT(tc_module, TDBOCREAT);    /* writer creating */
+  ADD_INT(tc_module, TDBOTRUNC);    /* writer truncating */
+  ADD_INT(tc_module, TDBONOLCK);    /* open without locking */
+  ADD_INT(tc_module, TDBOLCKNB);    /* lock without blocking */
+  ADD_INT(tc_module, TDBOTSYNC);    /* synchronize every transaction */
+  
+  /* TDB: index types */
+  ADD_INT(tc_module, TDBITLEXICAL); /* lexical string */
+  ADD_INT(tc_module, TDBITDECIMAL); /* decimal string */
+  ADD_INT(tc_module, TDBITOPT);     /* optimize */
+  ADD_INT(tc_module, TDBITVOID);    /* void */
+  ADD_INT(tc_module, TDBITKEEP);    /* keep existing index */
+  
+  /* TDB: query conditions */
+  ADD_INT(tc_module, TDBQCSTREQ);   /* string is equal to */
+  ADD_INT(tc_module, TDBQCSTRINC);  /* string is included in */
+  ADD_INT(tc_module, TDBQCSTRBW);   /* string begins with */
+  ADD_INT(tc_module, TDBQCSTREW);   /* string ends with */
+  ADD_INT(tc_module, TDBQCSTRAND);  /* string includes all tokens in */
+  ADD_INT(tc_module, TDBQCSTROR);   /* string includes at least one token in */
+  ADD_INT(tc_module, TDBQCSTROREQ); /* string is equal to at least one token in */
+  ADD_INT(tc_module, TDBQCSTRRX);   /* string matches regular expressions of */
+  ADD_INT(tc_module, TDBQCNUMEQ);   /* number is equal to */
+  ADD_INT(tc_module, TDBQCNUMGT);   /* number is greater than */
+  ADD_INT(tc_module, TDBQCNUMGE);   /* number is greater than or equal to */
+  ADD_INT(tc_module, TDBQCNUMLT);   /* number is less than */
+  ADD_INT(tc_module, TDBQCNUMLE);   /* number is less than or equal to */
+  ADD_INT(tc_module, TDBQCNUMBT);   /* number is between two tokens of */
+  ADD_INT(tc_module, TDBQCNUMOREQ); /* number is equal to at least one token in */
+  ADD_INT(tc_module, TDBQCNEGATE);  /* negation flag */
+  ADD_INT(tc_module, TDBQCNOIDX);   /* no index flag */
+  
+  /* TDB: order types */
+  ADD_INT(tc_module, TDBQOSTRASC);  /* string ascending */
+  ADD_INT(tc_module, TDBQOSTRDESC); /* string descending */
+  ADD_INT(tc_module, TDBQONUMASC);  /* number ascending */
+  ADD_INT(tc_module, TDBQONUMDESC); /* number descending */
+  
+  /* TDB: post treatments */
+  ADD_INT(tc_module, TDBQPPUT);     /* modify the record */
+  ADD_INT(tc_module, TDBQPOUT);     /* remove the record */
+  ADD_INT(tc_module, TDBQPSTOP);    /* stop the iteration */
   
   #undef ADD_INT
   /* end adding constants */
