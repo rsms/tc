@@ -106,6 +106,36 @@ class TestTDB(unittest.TestCase):
     self.assertEquals(pks[0], 'torgny')
     self.assertEquals(pks[1], 'rosa')
     self.assertEquals(pks[2], 'jdoe')
+    
+    q = db.query()
+    q.order('age', tc.TDBQONUMDESC)
+    # get thos with ages < 40
+    q.filter('age', tc.TDBQCNUMLE, '40')
+    pks = q.keys()
+    self.assertEquals(pks[0], 'torgny')
+    self.assertEquals(pks[1], 'rosa')
+    self.assertEquals(len(pks), 2)
+    
+    # add to the filter only those > 30 ( and < 40 from before)
+    q.filter('age', tc.TDBQCNUMGE, '30')
+    pks = q.keys()
+    self.assertEquals(pks[0], 'torgny')
+    self.assertEquals(len(pks), 1)
+    
+    # filter out those who have blue in the colors
+    q = db.query()
+    q.order('age', tc.TDBQONUMDESC)
+    q.filter('colors', tc.TDBQCSTRINC, 'blue')
+    pks = q.keys()
+    self.assertEquals(pks[0], 'torgny')
+    self.assertEquals(pks[1], 'rosa')
+    self.assertEquals(len(pks), 2)
+    
+    # add a filter to the existing:
+    q.filter('colors', tc.TDBQCSTRINC, 'pink')
+    pks = q.keys()
+    self.assertEquals(pks[0], 'rosa')
+    self.assertEquals(len(pks), 1)
   
 
 def suite():

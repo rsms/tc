@@ -3,9 +3,10 @@ import unittest, sys, os
 
 def suite():
   suites = []
-  import hdb, bdb
+  import hdb, bdb, tdb
   suites.append(hdb.suite())
   suites.append(bdb.suite())
+  suites.append(tdb.suite())
   return unittest.TestSuite(suites)
 
 def test(*va, **kw):
