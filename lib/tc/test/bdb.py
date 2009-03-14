@@ -209,11 +209,8 @@ class TestBDB(unittest.TestCase):
     db.adddouble('double', 1.0)
     self.assertEqual(struct.unpack('d', db['double'])[0], 1.0)
     
-    # Error handling with no record. Thanks to Hatem Nassrat.
-    try:
-      db['absence']
-    except Exception, e:
-      self.assertEqual(type(e), KeyError)
+    # Error handling with no record.
+    self.assertRaises(KeyError, eval, "db['absence']", globals(), locals())
     
     os.remove(DBNAME)
   

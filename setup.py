@@ -359,7 +359,10 @@ setup(name = 'tc',
         sources = sources
        )],
       package_dir = {'': 'lib'},
-      packages = ['tc'],
+      packages = [
+        'tc',
+        'tc.test'
+      ],
       platforms = "ALL",
       classifiers = [
         'Development Status :: 4 - Beta',
