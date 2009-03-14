@@ -1,0 +1,11 @@
+#!/bin/bash
+# Test working copy
+VERSIONS='2.4  2.5  2.6  2.7  3.0'
+for PV in $VERSIONS; do
+  if (which python$PV>/dev/null); then
+    echo "$0:" "Building and testing working copy tc with Python $PV"
+    rm -rf build/lib.*
+    python$PV setup.py build -f > /dev/null || exit 1
+    PYTHONPATH="$(echo $(pwd)/build/lib.*-$PV)" python$PV -c 'import tc.test as t;t.test()' || exit 1
+  fi
+done
