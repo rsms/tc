@@ -77,7 +77,7 @@ class build_ext(_build_ext):
       self.include_dirs.append('/opt/local/include')
       self.library_dirs.append('/opt/local/lib')
     # Fink
-    if os.path.isdir('/opt/local/include'):
+    if os.path.isdir('/sw/include'):
       self.include_dirs.append('/sw/include')
       self.library_dirs.append('/sw/lib')
     # Other
