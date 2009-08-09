@@ -226,6 +226,10 @@ class TestBDB(unittest.TestCase):
     
     os.remove(DBNAME)
   
+  def testEmptyIteritems(self):
+    db = tc.BDB()
+    db.open(DBNAME, tc.BDBOWRITER | tc.BDBOCREAT)
+    self.assertEqual(list(db.iteritems()), [])
 
 def suite():
   return unittest.TestSuite([

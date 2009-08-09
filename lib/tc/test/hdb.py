@@ -141,6 +141,10 @@ class TestHDB(unittest.TestCase):
     # remove
     os.remove(DBNAME)
   
+  def testEmptyIteritems(self):
+    db = tc.HDB()
+    db.open(DBNAME, tc.HDBOWRITER | tc.HDBOCREAT)
+    self.assertEqual(list(db.iteritems()), [])
 
 def suite():
   return unittest.TestSuite([
