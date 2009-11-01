@@ -126,8 +126,6 @@ class build_ext(_build_ext):
       if machine in X86_MACHINES:
         log.debug("Enabling SSE3 support")
         cflags += ' -msse3'
-        if platform.system() == 'Darwin':
-          cflags += ' -mssse3'
     # set c flags
     if 'CFLAGS' in os.environ:
       os.environ['CFLAGS'] += cflags
