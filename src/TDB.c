@@ -40,8 +40,12 @@ static bool _open(tc_TDB *self, PyObject *args, PyObject *keywds) {
 }
 
 
+
+
+
 /* Public ---------------------------------------------------------------- */
 
+TC_XDB_OPEN(tc_TDB_open,tc_TDB,tc_TDB_new,tctdbopen,db,tc_TDB_dealloc,_set_tdb_error);
 
 static void tc_TDB_dealloc(tc_TDB *self) {
   log_trace("ENTER");
@@ -179,6 +183,38 @@ error:
   return retv;
 }
 
+TC_XDB_SetItem(tc_TDB_SetItem,tc_TDB,tchdbput,db,_set_tdb_error);
+
+
+// bool tctdbtune(TCTDB *tdb, int64_t bnum, int8_t apow, int8_t fpow, uint8_t opts);
+static PyObject *tc_TDB_tune(tc_TDB *self, PyObject *args, PyObject *kwargs) {
+
+  static char *kwlist[] = {"bnum", "apow", "fpow", "opts", NULL};
+  bool result;
+  short apow, fpow;
+  unsigned char opts;
+  PY_LONG_LONG bnum;
+
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "LhhB:tune", kwlist, &bnum, &apow, &fpow, &opts)) {
+    return NULL;
+  }
+  if (!(char_bounds(apow) && char_bounds(fpow))) {
+     return NULL;
+  }
+
+
+  Py_BEGIN_ALLOW_THREADS
+  result = tctdbtune(self->db, bnum, apow, fpow, opts);
+  Py_END_ALLOW_THREADS
+
+  if (!result){
+      _set_tdb_error(self->db);
+      return NULL;
+  }
+
+  Py_RETURN_NONE;
+
+}
 
 static PyObject *tc_TDB_get(tc_TDB *self, PyObject *args, PyObject *keywds) {
   log_trace("ENTER");
@@ -277,16 +313,21 @@ static PyObject *tc_TDB_query(tc_TDB *self) {
 
 /* methods of classes */
 static PyMethodDef tc_TDB_methods[] = {
+  {"open", (PyCFunction)tc_TDB_open, METH_VARARGS | METH_KEYWORDS,
+    "Open a table."},
   {"put", (PyCFunction)tc_TDB_put, METH_VARARGS | METH_KEYWORDS,
     "Store a record."},
   {"get", (PyCFunction)tc_TDB_get, METH_VARARGS | METH_KEYWORDS,
     "Retrieve a record."},
+  {"tune", (PyCFunction)tc_TDB_tune, METH_VARARGS | METH_KEYWORDS,
+    "tune the database"},
   {"delete", (PyCFunction)tc_TDB_delete, METH_VARARGS | METH_KEYWORDS,
     "Remove a record."},
   {"out", (PyCFunction)tc_TDB_delete, METH_VARARGS | METH_KEYWORDS,
     "Alias of delete()."},
   {"query", (PyCFunction)tc_TDB_query, METH_NOARGS,
     "Query the table."},
+
   {NULL, NULL, 0, NULL}
 };
 

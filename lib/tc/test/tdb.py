@@ -16,8 +16,14 @@ class TestTDB(unittest.TestCase):
       os.remove(DBNAME)
   
   def testAll(self):
-    db = tc.TDB(DBNAME, tc.TDBOWRITER | tc.TDBOCREAT)
+    #db = tc.TDB(DBNAME, tc.TDBOWRITER | tc.TDBOCREAT)
     #db.open(DBNAME2, tc.HDBOWRITER | tc.HDBOCREAT)
+    db = tc.TDB()
+    # tune
+    db.tune(100, 32, 64, tc.TDBTTCBS)
+    # open
+    db.open(DBNAME, tc.TDBOWRITER | tc.TDBOCREAT)
+
     
     cols = {'name': 'John Doe', 'age': '45', 'city': u'Internets'}
     db.put('jdoe', cols)
