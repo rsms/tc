@@ -46,6 +46,7 @@ static bool _open(tc_TDB *self, PyObject *args, PyObject *keywds) {
 /* Public ---------------------------------------------------------------- */
 
 TC_XDB_OPEN(tc_TDB_open,tc_TDB,tc_TDB_new,tctdbopen,db,tc_TDB_dealloc,_set_tdb_error);
+TC_BOOL_NOARGS(tc_TDB_close,tc_TDB,tctdbclose,db,_set_tdb_error,db);
 
 static void tc_TDB_dealloc(tc_TDB *self) {
   log_trace("ENTER");
@@ -315,6 +316,8 @@ static PyObject *tc_TDB_query(tc_TDB *self) {
 static PyMethodDef tc_TDB_methods[] = {
   {"open", (PyCFunction)tc_TDB_open, METH_VARARGS | METH_KEYWORDS,
     "Open a table."},
+  {"close", (PyCFunction)tc_TDB_close, METH_VARARGS | METH_KEYWORDS,
+    "Close a table."},
   {"put", (PyCFunction)tc_TDB_put, METH_VARARGS | METH_KEYWORDS,
     "Store a record."},
   {"get", (PyCFunction)tc_TDB_get, METH_VARARGS | METH_KEYWORDS,

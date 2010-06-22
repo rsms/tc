@@ -142,7 +142,16 @@ class TestTDB(unittest.TestCase):
     pks = q.keys()
     self.assertEquals(pks[0], 'rosa')
     self.assertEquals(len(pks), 1)
-  
+
+    db.close()
+    # operations after a close will fail
+    try:
+      db.get('jdoe')
+    except tc.Error, e:
+      self.assertEquals((2, 'invalid operation'), e.args)
+    else:
+      self.fail()
+
 
 def suite():
   return unittest.TestSuite([
