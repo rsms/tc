@@ -182,8 +182,9 @@ static PyObject *tc_HDB_iternext(tc_HDB *self) {
       if (self->itype == tc_iter_value_t) {
         ret = PyBytes_FromStringAndSize(tcxstrptr(value), tcxstrsize(value));
       } else {
-        ret = Py_BuildValue("(s#s#)", tcxstrptr(key), tcxstrsize(key),
-                                      tcxstrptr(value), tcxstrsize(value));
+        ret = PyTuple_New(2);
+        PyTuple_SET_ITEM(ret, 0, PyBytes_FromStringAndSize(tcxstrptr(key), tcxstrsize(key)));
+        PyTuple_SET_ITEM(ret, 1, PyBytes_FromStringAndSize(tcxstrptr(value), tcxstrsize(value)));
       }
     }
     TC_CLEAR_TCXSTR_KEY_VALUE()
